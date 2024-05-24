@@ -1,0 +1,156 @@
+body {
+    background-color: #404040;
+}
+
+nav ul {
+    list-style-type: none;
+    margin: 0px;
+    padding: 0px;
+    overflow: hidden;
+    background-color: black;
+    display: flex;
+    justify-content: space-around;
+    border: solid;
+    border-radius: 5px;
+    border-color: red;
+    margin-bottom: 10px;
+}
+
+.roboto-mono {
+    font-family: "Roboto Mono", monospace;
+    font-optical-sizing: auto;
+    font-weight: bold;
+    font-style: normal;
+  }
+
+nav ul li a {
+    float: left;
+    color: white;
+    text-decoration: none;
+}
+
+nav ul li a:hover {
+    opacity: 0.8;
+}
+
+nav ul li:hover {
+    background-color: #1f1f1f97;
+}
+
+.widget-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(30%, 1fr));
+    gap: 14px;
+    justify-content: center;
+    width: 100%;
+}
+
+.widget {
+    box-sizing: border-box;
+    background-color: #404040;
+    padding: 5px;
+    align-items: center;
+    width: 100%;
+    margin: 0px;
+}
+
+.widget img {
+    width: 100%;
+    height: 300px;
+    display: block; /* Removes bottom space/gap */
+    border: solid;
+    border-radius: 15px;
+    border-color: black;
+    margin: 0px;
+    padding: 0px;
+}
+
+.widget img:hover {
+    cursor: pointer;
+}
+
+.widget p {
+    width: 97.5%;
+    text-align: center;
+    background-color: black;
+    color: white;
+    font-size: 20px;
+    margin: 0px;
+    border: solid;
+    border-radius: 5px;
+    border-color: red;
+    padding: 5px;
+}
+
+#dungeon-description {
+    color: white;
+    font-size: 15px;
+    margin: 0px;
+}
+
+#about-me-image {
+    width: 100%;
+    height: 100%;
+    display: block; /* Removes bottom space/gap */
+    border: solid;
+    border-radius: 15px;
+    border-color: black;
+    margin: 0px;
+    padding: 0px;
+    float: right;
+}
+
+.widget-container-aboutme-left {
+    display: grid;
+    grid-template-columns: 1fr 3fr;
+    gap: 14px;
+    justify-content: center;
+    width: 100%;
+}
+
+.widget-container-aboutme-right {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    gap: 14px;
+    justify-content: center;
+    width: 100%;
+}
+
+.widget-container-aboutme-right-edu {
+    display: grid;
+    grid-template-columns: 2.5fr 1.5fr;
+    gap: 14px;
+    justify-content: center;
+    width: 100%;
+}
+
+.widget-aboutme {
+    width: 97.5%;
+    text-align: center;
+    background-color: black;
+    color: white;
+    font-size: 20px;
+    margin: 0px;
+    border: solid;
+    border-radius: 7px;
+    border-color: red;
+    padding: 5px;
+}
+
+.widget-aboutme-header {
+    width: 97.5%;
+    text-align: center;
+    background-color: black;
+    color: white;
+    font-size: 20px;
+    margin: 0px;
+    border: solid;
+    border-radius: 7px;
+    border-color: red;
+    padding: 5px;
+    margin-top: 10px;
+}
+
+.widget-aboutme-header h1{
+    margin: 3px;
+}
