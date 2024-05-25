@@ -108,6 +108,14 @@ nav ul li:hover {
     width: 100%;
 }
 
+.widget-container-aboutme-left-professor {
+    display: grid;
+    grid-template-columns: 1fr 1fr 3fr;
+    gap: 14px;
+    justify-content: center;
+    width: 100%;
+}
+
 .widget-container-aboutme-right {
     display: grid;
     grid-template-columns: 3fr 1fr;
@@ -154,3 +162,194 @@ nav ul li:hover {
 .widget-aboutme-header h1{
     margin: 3px;
 }
+
+/* Progress Page */
+/* CSHARP */
+
+.bar {
+    display: flex;
+    background-color: black;
+    border-radius: 15px;
+    width: calc(100% - 30px);
+    height: 30px;
+    margin: 0px;
+    padding: 0px;
+    align-items: center;
+}
+
+.progress {
+    float: left;
+    transform: translateX(15px);
+    margin-left: 5px;
+    border-radius: 7px;
+    background-color: rgb(193, 104, 201);
+    width: 45%;
+    max-width: 100%;
+    height: 12px;
+    margin: 0px;
+    padding: 0px;
+}
+
+.widget-container-progress {
+    background-color: rgb(131, 24, 141);
+    border: solid;
+    border-width: 6px;
+    border-radius: 10px;
+    border-color: rgb(91, 17, 98);
+    display: grid;
+    grid-template-columns: 1fr 8fr;
+    gap: 5px;
+    justify-content: center;
+    align-items: center;
+    width: calc(100% - 10px);
+    height: 120px;
+    margin-bottom: 10px;
+}
+
+.widget-progress {
+    background-color: rgb(131, 24, 141);
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 5px;
+    height: 100%;
+    width: 150px;
+    margin: 0px;
+}
+
+.widget-progress img {
+    box-sizing: border-box;
+    border-radius: 5px;
+    background-color: rgb(91, 17, 98);
+    padding: 5px;
+    align-items: center;
+    height: 100px;
+    width: 100px;
+    margin: 0px;
+}
+
+.progress-text p {
+    color: white;
+    font-size: 20px;
+    margin: 0px;
+    transform: translateX(20px);
+}
+
+/* JAVASCRIPT */
+
+#js-progress {
+    background-color: rgb(238, 219, 48); /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
+    width: 1%;
+}
+
+#js-widget-container-progress {
+    background-color: rgb(187, 175, 68); /* LIGHTER VERSION - INSIDE */
+    border-color: rgb(92, 86, 30); /* DARKER VERSION - BORDER */
+}
+
+#js-widget-progress {
+    background-color: rgb(187, 175, 68);
+}
+
+#js-widget-progress img {
+    background-color: rgb(92, 86, 30);
+}
+
+/* HTML */
+#html-progress {
+    background-color: rgb(239, 155, 77); /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
+    width: 25%;
+}
+
+#html-widget-container-progress {
+    background-color: rgb(241, 217, 173); /* LIGHTER VERSION - INSIDE */
+    border-color: rgb(230,80,37); /* DARKER VERSION - BORDER */
+}
+
+#html-widget-progress {
+    background-color: rgb(241, 217, 173);
+}
+
+#html-widget-progress img {
+    background-color: rgb(230,80,37);
+}
+
+/* CSS */
+#css-progress {
+    background-color: rgb(53,156,214); /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
+    width: 30%;
+}
+
+#css-widget-container-progress {
+    background-color: rgb(156, 209, 240); /* LIGHTER VERSION - INSIDE */
+    border-color: rgb(32,97,175); /* DARKER VERSION - BORDER */
+}
+
+#css-widget-progress {
+    background-color: rgb(156, 209, 240);
+}
+
+#css-widget-progress img {
+    background-color: rgb(32,97,175);
+}
+
+/* JAVA */
+#java-progress {
+    background-color: rgb(238, 52, 52); /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
+    width: 15%;
+}
+
+#java-widget-container-progress {
+    background-color: white; /* LIGHTER VERSION - INSIDE */
+    border-color: rgb(203,45,46); /* DARKER VERSION - BORDER */
+}
+
+#java-widget-progress {
+    background-color: white;
+}
+
+#java-widget-progress img {
+    background-color: black;
+}
+
+/* Euler's Set */
+#euler-progress {
+    background-color: white; /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
+    width: 0%;
+}
+
+#euler-widget-container-progress {
+    background-color: white; /* LIGHTER VERSION - INSIDE */
+    border-color: black; /* DARKER VERSION - BORDER */
+}
+
+#euler-widget-progress {
+    background-color: white;
+}
+
+#euler-widget-progress img {
+    background-color: black;
+}
+
+/* Leetcode Set */
+#leetcode-progress {
+    background-color: white; /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
+    width: 1%;
+}
+
+#leetcode-widget-container-progress {
+    background-color: rgb(116, 116, 116);; /* LIGHTER VERSION - INSIDE */
+    border-color: rgb(246,157,27); /* DARKER VERSION - BORDER */
+}
+
+#leetcode-widget-progress {
+    background-color: rgb(116, 116, 116);;
+}
+
+#leetcode-widget-progress img {
+    background-color: black;
+}
+
