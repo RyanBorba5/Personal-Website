@@ -45,6 +45,29 @@ nav ul li:hover {
     width: 100%;
 }
 
+.github-container {
+    background-color: black;
+    border-style: solid;
+    border-radius: 15px;
+    border-color: white;
+    border-width: 5px;
+    margin-top: 5px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(1fr));
+    gap: 14px;
+    justify-content: center;
+    width: 100%;
+}
+
+.widget-github {
+    display: flex;
+    justify-content: center;  /* Horizontally centers the div */
+    align-items: center;      /* Vertically centers the div */
+    height: 200px;
+    gap: 14px;
+    width: 200px;
+}
+
 .widget {
     box-sizing: border-box;
     background-color: #404040;
@@ -55,8 +78,29 @@ nav ul li:hover {
 }
 
 .widget img {
+    width: 99.5%;
+    height: 300px;
+    display: block; /* Removes bottom space/gap */
+    border: solid;
+    border-radius: 20px;
+    border-color: black;
+    margin: 0px;
+    padding: 0px;
+}
+
+.widgetnopointer img {
     width: 100%;
     height: 300px;
+    display: block; /* Removes bottom space/gap */
+    border: solid;
+    border-radius: 15px;
+    border-color: black;
+    padding: 0px;
+}
+
+#githubimg {
+    width: 170px;
+    height: 170px;
     display: block; /* Removes bottom space/gap */
     border: solid;
     border-radius: 15px;
@@ -65,19 +109,27 @@ nav ul li:hover {
     padding: 0px;
 }
 
+#githubimg:hover {
+    cursor: pointer;
+}
+
+.widgetnopointer img:hover {
+    
+}
+
 .widget img:hover {
     cursor: pointer;
 }
 
 .widget p {
-    width: 97.5%;
+    width: 1fr;
     text-align: center;
     background-color: black;
     color: white;
     font-size: 20px;
     margin: 0px;
     border: solid;
-    border-radius: 5px;
+    border-radius: 10px;
     border-color: red;
     padding: 5px;
 }
@@ -88,6 +140,18 @@ nav ul li:hover {
     margin: 0px;
 }
 
+#template-image {
+    width: 100%;
+    height: 1fr;
+    display: block; /* Removes bottom space/gap */
+    border: solid;
+    border-radius: 15px;
+    border-color: black;
+    margin-bottom: 0px;
+    padding: 0px;
+    float: right;
+}
+
 #about-me-image {
     width: 100%;
     height: 100%;
@@ -95,7 +159,7 @@ nav ul li:hover {
     border: solid;
     border-radius: 15px;
     border-color: black;
-    margin: 0px;
+    margin-bottom: 0px;
     padding: 0px;
     float: right;
 }
@@ -106,6 +170,7 @@ nav ul li:hover {
     gap: 14px;
     justify-content: center;
     width: 100%;
+    margin-bottom: 10px;
 }
 
 .widget-container-aboutme-left-professor {
@@ -133,7 +198,7 @@ nav ul li:hover {
 }
 
 .widget-aboutme {
-    width: 97.5%;
+    width: 1fr;
     text-align: center;
     background-color: black;
     color: white;
@@ -146,7 +211,7 @@ nav ul li:hover {
 }
 
 .widget-aboutme-header {
-    width: 97.5%;
+    width: 1fr;
     text-align: center;
     background-color: black;
     color: white;
@@ -157,6 +222,7 @@ nav ul li:hover {
     border-color: red;
     padding: 5px;
     margin-top: 10px;
+    margin-bottom: 10px;
 }
 
 .widget-aboutme-header h1{
@@ -318,7 +384,7 @@ nav ul li:hover {
 /* Euler's Set */
 #euler-progress {
     background-color: white; /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
-    width: 0%;
+    width: 1%;
 }
 
 #euler-widget-container-progress {
@@ -350,6 +416,25 @@ nav ul li:hover {
 }
 
 #leetcode-widget-progress img {
+    background-color: black;
+}
+
+/* Hackerrank Set */
+#hackerrank-progress {
+    background-color: white; /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
+    width: 1%;
+}
+
+#hackerrank-widget-container-progress {
+    background-color: rgb(38, 58, 85); /* LIGHTER VERSION - INSIDE */
+    border-color: black; /* DARKER VERSION - BORDER */
+}
+
+#hackerrank-widget-progress {
+    background-color: rgb(38, 58, 85);
+}
+
+#hackerrank-widget-progress img {
     background-color: black;
 }
 
