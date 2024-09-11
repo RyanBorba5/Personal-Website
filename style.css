@@ -421,7 +421,7 @@ nav ul li:hover {
 
 /* Hackerrank Set */
 #hackerrank-progress {
-    background-color: white; /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
+    background-color: rgb(0,234,100); /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
     width: 1%;
 }
 
