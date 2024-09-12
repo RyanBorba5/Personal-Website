@@ -162,6 +162,7 @@ nav ul li:hover {
     margin-bottom: 0px;
     padding: 0px;
     float: right;
+    cursor: default;
 }
 
 .widget-container-aboutme-left {
