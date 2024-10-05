@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Jumpscare Roulette Project</title>
+        <link rel="stylesheet" href="style.css">
+        <link rel="stylesheet" href="prism.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <nav class = "roboto-mono">
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="aboutme.html">About Me</a></li>
+                <li><a href="projects.html">Projects</a></li>
+                <li><a href="note.html">Note To Future Self</a></li>
+                <li><a href="progress.html">Progression</a></li>
+            </ul>
+        </nav>
+        <div class = "widget-container-project">
+            <div class = "widgetnopointer">
+                <img src = "images/JRoulette2.png" id = "project-image">
+            </div>
+            <div class = "widget-aboutme">
+                <p>I love this project. I have full creativity to mess around with my new Javascript skills and that excites me a lot. This project was proof to me that I could make whatever I put my mind to as long as I tried. Honestly, it even turned out to be really fun so I'm super pleased with it. I added lots of suspense and I might even want to work on making it a clicking game so that you only get coins if you really focus in on the screen. This would make the jumpscares many times more effective. Overall a super fun project and I plan to work on it more. I'm not entirely sure how to get like accounts made with databases and all that but I'll figure that out someday and maybe I'll end up adding that to this website.
+                    <br>Click the github icon for a link to the project's source code!
+                </p>
+            </div>
+        </div>
+        <div class = github-container>
+            <div class = "widget-github">
+                <a href = "https://github.com/RyanBorba5/Jumpscare-Roulette" target = "_blank"><img src = "images/github.png" id = "githubimg"></a>
+            </div>
+        </div>
+        <div class = code-container>
+            <div class = "code-wrapper">
+                <pre>
+                    <code id = "code" class = "language-javascript">
+
+                        //JAVASCRIPT
+
+                        var Entranceaudio = new Audio('');
+
+                        function readInput() {
+                            var userInput = document.getElementById("userInput").value;
+                        }
+
+                        function generateBoard() {
+
+                        }
+
+                        function beginReveal(clickedcard) {
+                            let randomnum = getRandomInt(8000,20000);
+                            const foggybox = document.getElementById('foggybox');
+                            foggybox.style.display = 'block';
+                            foggybox.style.transition = 'transform 7s';
+                            const coinimgelement = document.getElementById('coinimg');
+                            requestAnimationFrame(() => {
+                                foggybox.style.transform = 'scale(7500%, 7500%)'; 
+                            });
+                            playEntranceSound();
+                            setTimeout(() => {
+                                Entranceaudio.pause();
+                                decideResult();
+                             }, randomnum); // After random interval the jumpscare or coins pops up.
+                         
+                            setTimeout(() => {
+                               requestAnimationFrame(() => {
+                                foggybox.style.transform = 'scale(0%, 0%)'; 
+                                }); 
+                                const clickedcardelement = document.getElementById(clickedcard);
+                                clickedcardelement.style.display = 'none';
+                                const clickedcarddivelement = clickedcardelement.parentNode;
+                                clickedcarddivelement.style.visibility = 'hidden';
+                                clickedcarddivelement.style.pointerEvents = 'none';
+                                coinimgelement.style.display = 'none';
+                            }, randomnum + 5000);
+                        }
+
+                        function playEntranceSound() {
+                            let randomnum = getRandomInt(1,3);
+                            switch (randomnum) {
+                                case 1: 
+                                    Entranceaudio = new Audio('/sounds/creepy-ambience1.mp3');
+                                    Entranceaudio.play();
+                                break;
+                            
+                                case 2: 
+                                    Entranceaudio = new Audio('/sounds/creepy-ambience2.mp3');
+                                    Entranceaudio.play();
+                                break;
+                            
+                                case 3: 
+                                    Entranceaudio = new Audio('/sounds/howling-wind-edited.mp3');
+                                    Entranceaudio.play();
+                                break;
+                            }
+                        }
+
+                        function getRandomInt(min, max) {
+                            return Math.floor(Math.random() * (max - min + 1)) + min;
+                        }
+
+                        function scare() {
+                            const scareimg = document.getElementById('scareimg');
+                            let randomnum = getRandomInt(1,3);
+                            let scareaudio = new Audio('');
+                            switch (randomnum) {
+                                case 1: 
+                                    scareimg.src = '/images/zombie1.jpg';
+                                    scareaudio = new Audio('/sounds/zombieroar.mp3');
+                                break;
+                            
+                                case 2: 
+                                    scareimg.src = '/images/zombie1.jpg';
+                                    scareaudio = new Audio('/sounds/zombieroar.mp3');
+                                break;
+                            
+                                case 3: 
+                                    scareimg.src = '/images/zombie1.jpg';
+                                    scareaudio = new Audio('/sounds/zombieroar.mp3');
+                                break;
+                            }
+                            scareimg.style.display = 'block';
+                            scareimg.style.transform = 'scale(60, 60)'; 
+                            scareaudio.play();
+                            scareaudio.onended = () => {
+                                scareaudio.pause();
+                                scareaudio.currentTime = 0;
+                                scareimg.style.display = 'none';
+                            };
+                        }
+
+                        function coins() {
+                            let audio = new Audio('/sounds/collect-coins.mp3');
+                            audio.play();
+                            const coinelement = document.getElementById('coinimg');
+                            coinimg.style.display = 'block';
+                        }
+
+                        function decideResult() {
+                            let randomnum = getRandomInt(1,100);
+                            let randomnum2 = getRandomInt(1,100);
+                            if (randomnum > randomnum2) {
+                                scare();
+                            }else {
+                                coins();
+                            }
+                        }
+
+                    </code>
+                </pre>
+            </div>
+        </div>
+        <div class = code-container>
+            <div class = "code-wrapper">
+                <pre>
+                    <code id = "code" class = "language-css">
+
+                        //CSS
+
+                        body {
+                            background-color: rgb(24, 20, 22);
+                            margin: 0px;
+                            padding: 0px;
+                            position: relative;
+                          }
+                          
+                          .navbar {
+                            margin: 0px;
+                            padding: 0px;
+                            width: 100%;
+                            background-color: rgb(24, 20, 22);
+                            display: grid;
+                            grid-template-rows: 1fr 1fr;
+                            justify-content: center;
+                            align-items: center;
+                            text-align: center;
+                          }
+                          
+                          .navprimary {
+                            margin-top: 40px;
+                            max-height: 100px;
+                          }
+                          
+                          .navsecondary {
+                            max-height: 80px;
+                            margin: 0px;
+                            text-align: center;
+                          }
+                          
+                          .navprimaryitem {
+                            margin: 0px;
+                            font-size: 5rem;
+                            color: white;
+                          }
+                          
+                          .navsecondaryitem {
+                            margin-top: 0px;
+                            margin-bottom: 0px;
+                            display: inline-block;
+                            margin-left: 50px;
+                            margin-right: 50px;
+                            font-size: 3rem;
+                            color: white;
+                          }
+                          
+                          .navsecondaryitem:hover {
+                            color: rgb(128, 128, 128);
+                          }
+                          
+                          #active {
+                            color: rgb(128, 128, 128);
+                          }
+                          
+                          .creepster {
+                            font-family: "Creepster", system-ui;
+                            font-weight: 400;
+                            font-style: normal;
+                          }
+                          
+                          .information {
+                            margin-top: 40px;
+                            margin-left: 40px;
+                            display: block;
+                          }
+                          
+                          .information .infoitem {
+                            color: white;
+                            font-size: 20px;
+                          }
+                          
+                          .information .infoitemheader {
+                              color: white;
+                              font-size: 25px;
+                            }
+                          
+                          .github {
+                            color: rgb(154, 154, 228);
+                          }
+                          
+                          .github:hover {
+                            cursor: pointer;
+                          }
+                          
+                          .gifscontainerhome {
+                              margin-top: 80px;
+                              margin-left: 40px;
+                              display: grid;
+                              grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+                              justify-content: space-around;
+                          }
+                          
+                          #gifhome {
+                              box-shadow: 0px 0px 15px red;
+                              border-radius: 10px;
+                          }
+                          
+                          /*
+                          GAME RELATED THINGS BELOW
+                          */
+                          
+                          .bidlabel {
+                              color: white;
+                              font-weight: bold;
+                              font-size: 20px;
+                          }
+                          
+                          .playbutton {
+                              background-color: red;
+                              font-weight: bold;
+                              font-size: 20px;
+                          }
+                          
+                          #userinput {
+                          
+                          }
+                          
+                          .cardlayout {
+                              margin: 0 auto;
+                              width: 510px;
+                              display: grid;
+                              grid-template-columns: repeat(3, 0.28fr);
+                              gap: 25px 25px;
+                          }
+                          
+                          .carddiv {
+                              text-align: center;
+                              max-width: 290px;
+                              transition: box-shadow 0.5s ease, transform 2.0s ease;
+                              border-radius: 10px;
+                              height: 211px;
+                          }
+                          
+                          .carddiv img {
+                              border-radius: 10px;
+                          }
+                          
+                          .carddiv:hover {
+                              box-shadow: 0px 0px 12px crimson;
+                              transform: translateY(-10px);
+                              cursor: pointer;
+                          }
+                          
+                          .bidsandboard {
+                              text-align: center;
+                              margin-bottom: 40px;
+                          }
+                          
+                          #foggybox {
+                            background-color: black;
+                            width: 5px;
+                            height: 5px;
+                            position: absolute;
+                            z-index: 1;
+                            top: 67%;
+                            left: 50.35%;
+                            box-shadow: 0px 0px 10px 15px black;
+                            display: none;
+                            transform: scale(0,0);
+                          }
+                          
+                          #scareimg {
+                            width: 20px;
+                            height: 20px;
+                            position: absolute;
+                            z-index: 2;
+                            top: 63%;
+                            left: 50.35%;
+                            display: none;
+                          }
+                          
+                          .coincontainer {
+                          
+                          }
+                          
+                          #coinimg {
+                            width: 100px;
+                            height: 100px;
+                            position: absolute;
+                            z-index: 2;
+                            top: 63%;
+                            left: 50.35%;
+                            display: none;
+                          }
+                          
+                          #card1 {
+                            display: block;
+                          }
+                          
+                          #card2 {
+                            display: block;
+                          }
+                          
+                          #card3 {
+                            display: block;
+                          }
+                          
+                          #card4 {
+                            display: block;
+                          }
+                          
+                          #card5 {
+                            display: block;
+                          }
+                          
+                          #card6 {
+                            display: block;
+                          }
+                          
+                          #card7 {
+                            display: block;
+                          }
+                          
+                          #card8 {
+                            display: block;
+                          }
+                          
+                          #card9 {
+                            display: block;
+                          }
+
+                    </code>
+                </pre>
+            </div>
+        </div>
+        <div class = code-container>
+            <div class = "code-wrapper">
+                <pre>
+                    <code id = "code" class = "language-html">
+
+                        // HOME PAGE
+
+                        !DOCTYPE html>
+                        html lang="en">
+                          head>
+                            meta charset="UTF-8" />
+                            meta http-equiv="X-UA-Compatible" content="IE=edge" />
+                            meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                            title>Jumpscare Roulette/title>
+                            link rel="stylesheet" href="styles.css" />
+                            link rel="preconnect" href="https://fonts.googleapis.com" />
+                            link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+                            link href="https://fonts.googleapis.com/css2?family=Creepster&display=swap" rel="stylesheet"/>
+                          /head>
+                          body>
+                            script src="script.js">/script>
+                            nav class="navbar">
+                              div class="navprimary">
+                                p class="navprimaryitem creepster">JUMPSCARE ROULETTE/p>
+                              /div>
+                              div class="navsecondary">
+                                a href="index.html">p class="navsecondaryitem creepster" id="active">HOME/p>/a>
+                                a href="play.html">p class="navsecondaryitem creepster">PLAY/p>/a>
+                              /div>
+                            /nav>
+                            div class="information">
+                              h2 class = "infoitemheader">Welcome!/h2>
+                              p class="infoitem">Welcome to Jumpscare Roulette! In this exciting place you can bid on each board and see if you survive or get jumpscared instead!/p>
+                              p class="infoitem">This website was made by Ryan Borba. You can find my github here: a href="https://github.com/RyanBorba5" target="_blank" class="github">Click Me!/a>/p>
+                              br>
+                              h2 class = "infoitemheader">Why it was made:/h2>
+                              p class = "infoitem">I made this website because I'm starting to learn Javascript in my Full Stack Development course and I'd really love to mess around with this idea for a website./p>
+                              p class = "infoitem">I also just generally like the idea of a website where you bid on whether or not you get scared shitless. Sounds rather fun!/p>
+                              p class = "infoitem">The jumpscares need to be crafted in a very specific way and I think I have an idea as to how to make them./p>
+                              br>
+                              h2 class = "infoitemheader">How to Play:/h2>
+                              p class = "infoitem">1. Press F11 to fullscreen your browser window for the full immersive experience!/p>
+                              p class = "infoitem">2. Enter the amount of coins you want to bid./p>
+                              p class = "infoitem">3. Generate a new board before playing./p>
+                              p class = "infoitem">4. Try to get your money back and more without getting scared!/p>
+                            /div>
+                            div class = "gifscontainerhome">
+                                img src="/images/kid.webp" id = "gifhome">
+                                img src="/images/michael.webp" id = "gifhome">
+                                img src="/images/skeleton.webp" id = "gifhome">
+                                img src="/images/skellyring.webp" id = "gifhome">
+                                img src="/images/freddy.webp" id = "gifhome">
+                            /div>
+                          /body>
+                        /html>
+
+
+
+
+                          // PLAY PAGE
+
+                          !DOCTYPE html>
+                          html lang="en">
+                            head>
+                              meta charset="UTF-8" />
+                              meta http-equiv="X-UA-Compatible" content="IE=edge" />
+                              meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                              title>Jumpscare Roulette/title>
+                              link rel="stylesheet" href="styles.css" />
+                              link rel="preconnect" href="https://fonts.googleapis.com" />
+                              link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+                              link href="https://fonts.googleapis.com/css2?family=Creepster&display=swap" rel="stylesheet" />
+                            /head>
+                            body>
+                              script src="script.js">/script>
+                              nav class="navbar">
+                                div class="navprimary">
+                                  p class="navprimaryitem creepster">JUMPSCARE ROULETTE/p>
+                                /div>
+                                div class="navsecondary">
+                                  a href="index.html">p class="navsecondaryitem creepster">HOME/p>/a>
+                                  a href="play.html">p class="navsecondaryitem creepster" id="active">PLAY/p>/a>
+                                /div>
+                              /nav>
+                              div class = "bidsandboard">
+                                  label class = "bidlabel" for="userInput">Enter Bid Amount:/label>
+                                  input type="text" id="userInput" placeholder="Enter Bid Amount...">
+                                  button class = "playbutton" onclick="readInput()">Submit/button>
+                                  button class = "playbutton">Generate Board/button>
+                              /div>
+                              div class = "cardlayout">
+                                  div class = "carddiv">
+                                      img src = "images/CardBack.png" id = "card1" onclick="beginReveal('card1')">
+                                  /div>
+                                  div class = "carddiv">
+                                      img src = "images/CardBack.png" id = "card2" onclick="beginReveal('card2')">
+                                  /div>
+                                  div class = "carddiv">
+                                      img src = "images/CardBack.png" id = "card3" onclick="beginReveal('card3')">
+                                  /div>
+                                  div class = "carddiv">
+                                      img src = "images/CardBack.png" id = "card4" onclick="beginReveal('card4')">
+                                  /div>
+                                  div class = "carddiv">
+                                      img src = "images/CardBack.png" id = "card5" onclick="beginReveal('card5')">
+                                  /div>
+                                  div class = "carddiv">
+                                      img src = "images/CardBack.png" id = "card6" onclick="beginReveal('card6')">
+                                  /div>
+                                  div class = "carddiv">
+                                      img src = "images/CardBack.png" id = "card7" onclick="beginReveal('card7')">
+                                  /div>
+                                  div class = "carddiv">
+                                      img src = "images/CardBack.png" id = "card8" onclick="beginReveal('card8')">
+                                  /div>
+                                  div class = "carddiv">
+                                      img src = "images/CardBack.png" id = "card9" onclick="beginReveal('card9')">
+                                  /div>
+                              /div>
+                              div id = "foggybox">/div>
+                              img src = "" id = "scareimg">
+                              div class = "coincontainer">
+                                img src = "/images/coin.png" id = "coinimg">
+                                p id = "coinamount">+50/p>
+                              /div>
+                            /body>
+                          /html>
+
+                    </code>
+                </pre>
+            </div>
+        </div>
+    </body>
+    <script src = "prism.js"></script>
+</html>
+

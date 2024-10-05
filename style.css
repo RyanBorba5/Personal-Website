@@ -310,7 +310,7 @@ nav ul li:hover {
     margin-left: 5px;
     border-radius: 7px;
     background-color: rgb(193, 104, 201);
-    width: 45%;
+    width: 50%;
     max-width: 100%;
     height: 12px;
     margin: 0px;
@@ -369,7 +369,7 @@ nav ul li:hover {
 
 #js-progress {
     background-color: rgb(238, 219, 48); /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
-    width: 1%;
+    width: 5%;
 }
 
 #js-widget-container-progress {
@@ -388,7 +388,7 @@ nav ul li:hover {
 /* HTML */
 #html-progress {
     background-color: rgb(239, 155, 77); /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
-    width: 25%;
+    width: 50%;
 }
 
 #html-widget-container-progress {
@@ -407,7 +407,7 @@ nav ul li:hover {
 /* CSS */
 #css-progress {
     background-color: rgb(53,156,214); /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
-    width: 30%;
+    width: 50%;
 }
 
 #css-widget-container-progress {
@@ -426,7 +426,7 @@ nav ul li:hover {
 /* JAVA */
 #java-progress {
     background-color: rgb(238, 52, 52); /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
-    width: 15%;
+    width: 25%;
 }
 
 #java-widget-container-progress {
