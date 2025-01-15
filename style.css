@@ -369,7 +369,7 @@ nav ul li:hover {
 
 #js-progress {
     background-color: rgb(238, 219, 48); /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
-    width: 5%;
+    width: 35%;
 }
 
 #js-widget-container-progress {
@@ -439,6 +439,25 @@ nav ul li:hover {
 }
 
 #java-widget-progress img {
+    background-color: black;
+}
+
+/* Python's Set */
+#python-progress {
+    background-color: rgb(55,113,161); /* LIGHTEST VERSION PROGRESS BAR - MATCHES IMAGE */
+    width: 5%;
+}
+
+#python-widget-container-progress {
+    background-color: rgb(255,210,66); /* LIGHTER VERSION - INSIDE */
+    border-color: rgb(137, 112, 31); /* DARKER VERSION - BORDER */
+}
+
+#python-widget-progress {
+    background-color: rgb(255,210,66);
+}
+
+#python-widget-progress img {
     background-color: black;
 }
 

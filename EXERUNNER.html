@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Gradient Project</title>
+        <link rel="stylesheet" href="style.css">
+        <link rel="stylesheet" href="prism.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <nav class = "roboto-mono">
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="aboutme.html">About Me</a></li>
+                <li><a href="projects.html">Projects</a></li>
+                <li><a href="note.html">Note To Future Self</a></li>
+                <li><a href="progress.html">Progression</a></li>
+            </ul>
+        </nav>
+        <div class = "widget-container-project">
+            <div class = "widgetnopointer">
+                <img src = "images/EXERUNNER.png" id = "project-image">
+            </div>
+            <div class = "widget-aboutme">
+                <p> This was my first ever time making something in python. I've rarely even made programs in general so making this python application was really neat for me. I used pyqt5 and auto-py-to-exe in order to make this nice little program. The program can delete, run, and even allow searching for exe files. It's very useful and I'm excited to utilize it for myself. Getting the icons working was the hardest part. Looking forwards to building more things in Python.
+                    <br>Click the github icon for a link to the project's source code!
+                </p>
+            </div>
+        </div>
+        <div class = github-container>
+            <div class = "widget-github">
+                <a href = "https://github.com/RyanBorba5/EXE-Runner" target = "_blank"><img src = "images/github.png" id = "githubimg"></a>
+            </div>
+        </div>
+        <div class = code-container>
+            <div class = "code-wrapper">
+                <pre>
+                    <code id = "code" class = "language-python">
+                        # importing the required libraries 
+
+                        from PyQt5.QtCore import * 
+                        from PyQt5.QtGui import * 
+                        from PyQt5.QtWidgets import * 
+                        import sys 
+                        import sqlite3  # Import SQLite library
+                        from ctypes import byref, c_char, c_int, c_void_p, POINTER
+                        from ctypes.wintypes import HICON, UINT, BOOL, DWORD, LONG, WORD
+                        import ctypes
+                        import win32gui
+                        import win32ui  # Make sure this line is here
+                        from io import BytesIO
+                        from PIL import Image
+
+
+                        class NameDialog(QDialog): 
+                            def __init__(self):
+                                super().__init__()
+                                self.setWindowTitle("Name the EXE")
+                                self.setGeometry(100, 100, 300, 100)
+
+                                self.layout = QVBoxLayout()
+
+                                self.label = QLabel("Enter a name for the EXE:")
+                                self.layout.addWidget(self.label)
+
+                                self.name_input = QLineEdit()
+                                self.layout.addWidget(self.name_input)
+
+                                self.ok_button = QPushButton("OK")
+                                self.ok_button.clicked.connect(self.accept)
+                                self.layout.addWidget(self.ok_button)
+
+                                self.setLayout(self.layout)
+
+                            def get_name(self):
+                                return self.name_input.text()  # Return the entered name
+
+                        class MainWindow(QMainWindow): 
+                            def __init__(self): 
+                                super().__init__() 
+
+                                # Set the title 
+                                self.setWindowTitle("EXE Runner V1.0.0") 
+                                self.setGeometry(100, 100, 900, 290)
+
+                                # Set the application icon
+                                self.setWindowIcon(QIcon("images/space.png"))  # Update the path to your PNG file
+
+                                # Create a tab widget
+                                tab_widget = QTabWidget()
+
+                                # Create widgets for each tab
+                                tab1 = QWidget()
+
+                                # Add a grid layout for the tab
+                                grid_layout = QGridLayout()
+                                tab1.setLayout(grid_layout)
+
+                                # Create a QListWidget to display the EXE paths
+                                self.exe_list_widget = QListWidget()
+                                grid_layout.addWidget(self.exe_list_widget, 0, 0)
+
+                                # Connect the context menu event
+                                self.exe_list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+                                self.exe_list_widget.customContextMenuRequested.connect(self.show_context_menu)
+
+                                # Add a spacer item to push the button to the right
+                                grid_layout.addItem(QSpacerItem(5, 5, QSizePolicy.Minimum, QSizePolicy.Expanding), 1, 0)
+
+                                self.search_bar = QLineEdit()
+                                self.search_bar.setPlaceholderText("Search EXEs...")
+                                self.search_bar.textChanged.connect(self.filter_exe_list)
+                                grid_layout.addWidget(self.search_bar, 2, 0)  # Add search bar to layout, adjust positioning as needed
+
+                                # Set up the database
+                                self.setup_database()
+
+                                # Load existing EXE files from the database (only once)
+                                self.load_exe_files()
+
+                                # Create the button
+                                exebutton = QPushButton("Select an EXE!")
+                                exebutton.clicked.connect(self.open_file_explorer)
+                                exebutton.setFixedSize(90, 30)
+
+                                # Add the button to the grid layout at row 0, column 0 (closer to the table)
+                                grid_layout.addWidget(exebutton, 1, 0)
+
+                                # Add another spacer item to the right of the button to ensure it stays in the top right
+                                grid_layout.addItem(QSpacerItem(10, 5, QSizePolicy.Minimum, QSizePolicy.Expanding), 1, 0)
+
+                                # Connect the double-click event to the method
+                                self.exe_list_widget.itemDoubleClicked.connect(self.run_selected_exe)
+
+                                # Add tabs to the tab widget
+                                tab_widget.addTab(tab1, "General")
+
+                                # Set the central widget of the main window to the tab widget
+                                self.setCentralWidget(tab_widget)
+                                self.update_exe_list()
+
+
+                            def filter_exe_list(self, text):
+                                # Clear the list before filtering
+                                self.exe_list_widget.clear()
+
+                                # Fetch all records from the database
+                                self.cursor.execute('SELECT * FROM exe_files')
+                                rows = self.cursor.fetchall()
+
+                                for row in rows:
+                                    exe_name = row[2]  # The name of the EXE from the database
+                                    if text.lower() in exe_name.lower():  # Case insensitive search
+                                        try:
+                                            icon_data = self.extract_icon(row[1], 32)  # Extract the icon
+                                            if icon_data:
+                                                exe_icon = QIcon(QPixmap.fromImage(QImage.fromData(icon_data)))
+                                            else:
+                                                exe_icon = QIcon("images/Space.png")  # Set a default icon if extraction fails
+                                        except Exception as e:
+                                            print(f"Error extracting icon for {row[1]}: {e}")
+                                            exe_icon = QIcon("images/Space.png")  # Use default icon if error
+
+                                        item = QListWidgetItem(exe_icon, exe_name)
+                                        self.exe_list_widget.addItem(item)
+
+                            def setup_database(self):
+                                self.conn = sqlite3.connect('exe_files.db')  # Connect to the database (or create it)
+                                self.cursor = self.conn.cursor()
+                                # Only create the table if it does not exist
+                                self.cursor.execute('''
+                                    CREATE TABLE IF NOT EXISTS exe_files (
+                                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                        file_path TEXT NOT NULL,
+                                        exe_name TEXT NOT NULL
+                                    )
+                                ''')  # Create a table to store file paths
+                                self.conn.commit()
+
+                            def open_file_explorer(self):
+                                options = QFileDialog.Options()
+                                file_name, _ = QFileDialog.getOpenFileName(self, "Select an EXE File", "", "Executable Files (*.exe);;All Files (*)", options=options)
+                                if file_name:
+                                    print(f"Selected EXE: {file_name}")
+
+                                    # Open the dialog to get the name for the EXE
+                                    name_dialog = NameDialog()
+                                    if name_dialog.exec_() == QDialog.Accepted:  # Check if the dialog was accepted
+                                        exe_name = name_dialog.get_name()  # Get the entered name
+                                        if exe_name:  # Ensure the name is not empty
+                                            self.save_to_database(file_name, exe_name)  # Save the selected file path and name to the database
+                                            self.update_exe_list()  # Update the list widget after saving
+                                        else:
+                                            print("No name entered for the EXE.")  # Print a warning if no name was entered
+
+                            def save_to_database(self, file_path, exe_name):
+                                try:
+                                    # Check if the EXE already exists in the database
+                                    self.cursor.execute('SELECT * FROM exe_files WHERE exe_name = ?', (exe_name,))
+                                    if self.cursor.fetchone() is not None:
+                                        print(f"EXE already exists in the database: {exe_name}")  # Debugging output
+                                        return  # Exit if the EXE already exists
+
+                                    print(f"Saving to database: {exe_name} - {file_path}")  # Debugging output
+                                    self.cursor.execute('INSERT INTO exe_files (file_path, exe_name) VALUES (?, ?)', (file_path, exe_name))
+                                    self.conn.commit()  # Commit the changes to the database
+                                    print(f"Successfully saved to database: {exe_name} - {file_path}")  # Debugging output
+                                    self.update_exe_list()  # Update the list widget after saving
+                                except Exception as e:
+                                    print(f"Error saving to database: {e}")  # Print the error message
+
+                            def update_exe_list(self):
+                                self.exe_list_widget.clear()
+                                self.cursor.execute('SELECT * FROM exe_files')
+                                rows = self.cursor.fetchall()
+                                for row in rows:
+                                    icon_data = self.extract_icon(row[1], 32)  # Extract the icon
+                                    if icon_data:
+                                        exe_icon = QIcon(QPixmap.fromImage(QImage.fromData(icon_data)))
+                                    else:
+                                        exe_icon = QIcon("images/Space.png")  # Set a default icon if extraction fails
+
+                                    item = QListWidgetItem(exe_icon, row[2])  # Create a list item with the icon and text
+                                    self.exe_list_widget.addItem(item)
+
+                            def closeEvent(self, event):
+                                self.conn.close()  # Close the database connection when the application is closed
+                                event.accept()  # Accept the close event
+
+                            def show_context_menu(self, pos):
+                                context_menu = QMenu(self)  # Create a context menu
+
+                                # Delete action with icon
+                                delete_action = QAction(QIcon("images/Delete.png"), "Delete", self)  # Add icon to delete action
+                                delete_action.triggered.connect(self.delete_selected_exe)  # Connect the action to the delete method
+                                context_menu.addAction(delete_action)  # Add the action to the context menu
+
+                                # Run action with icon
+                                run_action = QAction(QIcon("images/Run.png"), "Run", self)  # Add icon to run action
+                                run_action.triggered.connect(self.run_selected_exe_from_context)  # Connect to the run method
+                                context_menu.addAction(run_action)  # Add the run action to the context menu
+
+                                context_menu.exec_(self.exe_list_widget.mapToGlobal(pos))  # Show the context menu at the cursor position
+
+                            def delete_selected_exe(self):
+                                selected_item = self.exe_list_widget.currentItem()  # Get the currently selected item
+                                if selected_item:  # Check if an item is selected
+                                    exe_name = selected_item.text()  # Get the text of the selected item
+                                    # Fetch the file path from the database using the exe_name
+                                    self.cursor.execute('SELECT file_path FROM exe_files WHERE exe_name = ?', (exe_name,))
+                                    result = self.cursor.fetchone()  # Get the file path
+                                    if result:
+                                        file_path = result[0]  # Extract the file path
+                                        self.cursor.execute('DELETE FROM exe_files WHERE file_path = ?', (file_path,))  # Delete from the database
+                                        self.conn.commit()  # Commit the changes to the database
+                                        self.update_exe_list()  # Update the list widget after deletion
+
+                            def run_selected_exe(self, item):
+                                exe_name = item.text()  # Get the text of the double-clicked item
+                                # Fetch the file path from the database using the exe_name
+                                self.cursor.execute('SELECT file_path FROM exe_files WHERE exe_name = ?', (exe_name,))
+                                result = self.cursor.fetchone()  # Get the file path
+                                if result:
+                                    file_path = result[0]  # Extract the file path
+                                    # Run the EXE file
+                                    import subprocess
+                                    subprocess.Popen(file_path, shell=True)  # Execute the EXE file
+
+                            def run_selected_exe_from_context(self):
+                                selected_item = self.exe_list_widget.currentItem()  # Get the currently selected item
+                                if selected_item:  # Check if an item is selected
+                                    exe_name = selected_item.text()  # Get the text of the selected item
+                                    # Fetch the file path from the database using the exe_name
+                                    self.cursor.execute('SELECT file_path FROM exe_files WHERE exe_name = ?', (exe_name,))
+                                    result = self.cursor.fetchone()  # Get the file path
+                                    if result:
+                                        file_path = result[0]  # Extract the file path
+                                        # Run the EXE file
+                                        import subprocess
+                                        subprocess.Popen(file_path, shell=True)  # Execute the EXE file
+
+                            def load_exe_files(self):
+                                print("Loading EXE files from database...")  # Debugging output
+                                self.exe_list_widget.clear()  # Clear the current list
+                                self.cursor.execute('SELECT * FROM exe_files')  # Fetch all records from the database
+                                rows = self.cursor.fetchall()  # Get all rows
+                                for row in rows:
+                                    try:
+                                        icon_data = self.extract_icon(row[1], 32)  # Extract the icon
+                                        exe_icon = QIcon.fromImage(QImage.fromData(icon_data))  # Convert to QIcon
+
+                                        if exe_icon.isNull():
+                                            print(f"Failed to create QIcon for {row[1]}")  # Debugging output
+                                    except Exception as e:
+                                        print(f"Error extracting icon for {row[1]}: {e}")
+                                        exe_icon = QIcon()  # Use a default icon if extraction fails
+
+                                    item = QListWidgetItem(exe_icon, f"{row[2]}")  # Create a list item with the icon and text
+                                    self.exe_list_widget.addItem(item)  # Add the item to the list widget
+
+                            def extract_icon(self, file_path, size=32):
+                                try:
+                                    # Extract the icon
+                                    large, small = win32gui.ExtractIconEx(file_path, 0)
+
+                                    if not large:
+                                        raise ValueError("No icon found")
+
+                                    # Use the large icon
+                                    hIcon = large[0]
+
+                                    # Convert HICON to a bitmap
+                                    hdc = win32gui.GetDC(0)
+                                    hdcMem = win32gui.CreateCompatibleDC(hdc)
+                                    hBitmap = win32gui.CreateCompatibleBitmap(hdc, size, size)
+                                    oldBitmap = win32gui.SelectObject(hdcMem, hBitmap)
+
+                                    # Draw the icon
+                                    win32gui.DrawIconEx(hdcMem, 0, 0, hIcon, size, size, 0, None, 3)
+
+                                    # Convert the bitmap to a PIL Image using win32ui
+                                    win32ui_dc = win32ui.CreateDCFromHandle(hdcMem)
+                                    win32ui_dc_bit = win32ui.CreateBitmapFromHandle(hBitmap)
+
+                                    # Get the bitmap data
+                                    import io
+                                    bmpinfo = win32ui_dc_bit.GetInfo()
+                                    bmpstr = win32ui_dc_bit.GetBitmapBits(True)
+
+                                    # Convert the raw data to PIL Image
+                                    img = Image.frombuffer(
+                                        'RGBA',
+                                        (bmpinfo['bmWidth'], bmpinfo['bmHeight']),
+                                        bmpstr, 'raw', 'BGRA', 0, 1
+                                    )
+                                    img = img.resize((size, size), Image.LANCZOS)  # Resize if necessary
+
+                                    # Clean up
+                                    win32gui.SelectObject(hdcMem, oldBitmap)
+                                    win32gui.DeleteObject(hBitmap)
+                                    win32gui.DeleteDC(hdcMem)
+                                    win32gui.ReleaseDC(0, hdc)
+                                    win32gui.DestroyIcon(hIcon)
+
+                                    # Convert PIL Image to bytes
+                                    byte_io = BytesIO()
+                                    img.save(byte_io, format='PNG')
+                                    icon_data = byte_io.getvalue()
+
+                                    return icon_data
+
+                                except Exception as e:
+                                    print(f"Error extracting icon for {file_path}: {e}")
+                                    return None
+
+                        # Structure definitions
+                        class BITMAPINFOHEADER(ctypes.Structure):
+                            _fields_ = [
+                                ("biSize", DWORD),
+                                ("biWidth", LONG),
+                                ("biHeight", LONG),
+                                ("biPlanes", WORD),
+                                ("biBitCount", WORD),
+                                ("biCompression", DWORD),
+                                ("biSizeImage", DWORD),
+                                ("biXPelsPerMeter", LONG),
+                                ("biYPelsPerMeter", LONG),
+                                ("biClrUsed", DWORD),
+                                ("biClrImportant", DWORD)
+                            ]
+
+                        class BITMAPINFO(ctypes.Structure):
+                            _fields_ = [
+                                ("bmiHeader", BITMAPINFOHEADER),
+                                ("bmiColors", DWORD * 3)
+                            ]
+
+                        if __name__ == '__main__':
+                            app = QApplication(sys.argv)
+                            window = MainWindow()
+                            window.show()
+                            sys.exit(app.exec_())
+                    </code>
+                </pre>
+            </div>
+        </div>
+    </body>
+    <script src = "prism.js"></script>
+</html>
+
