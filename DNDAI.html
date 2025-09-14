@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>DNDAI Project</title>
+        <link rel="stylesheet" href="style.css">
+        <link rel="stylesheet" href="prism.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <nav class = "roboto-mono">
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="aboutme.html">About Me</a></li>
+                <li><a href="projects.html">Projects</a></li>
+                <li><a href="note.html">Note To Future Self</a></li>
+                <li><a href="progress.html">Progression</a></li>
+            </ul>
+        </nav>
+        <div class = "widget-container-project">
+            <div class = "widgetnopointer">
+                <img src = "images/DNDAI.png" id = "project-image">
+            </div>
+            <div class = "widget-aboutme">
+                <p> The description that I would use for this project is something like: "Dungeons and Dragons AI Assistant is a C# WPF application that utilizes a local LLM (Llama 3.1 8B) to act as a Dungeon Master for your D&D campaigns. It features persistent campaign memory, character management, dice rolling, and a combat tracker. The application stores conversations and character data in a local SQLite database, allowing for an immersive and interactive role-playing experience." I thought it would be fitting to make an AI generated description for a project that I somewhat used AI to make and is basically run by AI. Soooooo yeah! Not super proud of this project personally since most of the work was done through AI but I did want to put it on my website anyways because it's neat.
+                    <br>Click the github icon for a link to the project's source code!
+                </p>
+            </div>
+        </div>
+        <div class = github-container>
+            <div class = "widget-github">
+                <a href = "https://github.com/RyanBorba5/Dungeons-and-Dragons-AI-Assistant" target = "_blank"><img src = "images/github.png" id = "githubimg"></a>
+            </div>
+        </div>
+        <div class = code-container>
+            <div class = "code-wrapper">
+                <pre>
+                    <code id = "code" class = "language-csharp">
+                        using System;
+                        using System.Data.SQLite;
+                        using System.IO;
+                        using System.Windows;
+                        using System.Net.Http;
+                        using System.Text;
+                        using System.Text.Json;
+                        using System.Threading.Tasks;
+                        using System.Collections.Generic;
+                        using System.Linq;
+                        using System.Windows.Media;
+                        using Microsoft.Win32;
+                        using System.Windows.Forms;
+                        using System.Windows.Documents;
+                        using System.Text.RegularExpressions;
+                        using System.ComponentModel; // For INotifyPropertyChanged in Combatant
+                        using System.Runtime.CompilerServices; // For CallerMemberName
+
+                        namespace DNDAI
+                        {
+                            public partial class MainWindow : Window
+                            {
+                                private string dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DNDAI", "conversations.db");
+                                private HttpClient httpClient = new HttpClient();
+                                private const string OLLAMA_URL = "http://localhost:11434/api/generate";
+                                private const string AI_MODEL = "llama3.1:8b";
+
+                                // Campaign and conversation memory
+                                private string campaignContext = "";
+                                private string currentSession = "";
+                                private string currentMode = "DM";
+                                private int maxContextLength = 512000; // Character limit for context to avoid token limits
+                            
+                                private Color userTextColor = Colors.DarkGreen;
+                                private Color aiTextColor = Colors.Black;
+                                private readonly string colorConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DNDAI", "color_config.txt");
+                            
+                                // Custom instructions
+                                private readonly string customInstructionsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DNDAI", "custom_instructions.txt");
+                                private string customInstructions = "";
+                            
+                                // Dice rolling
+                                private Random random = new Random();
+                            
+                                // Combat tracker
+                                private bool isInCombat = false;
+                                private List<Combatant> combatants = new List<Combatant>();
+                                private int currentTurnIndex = 0;
+                                
+                                public MainWindow()
+                                {
+                                    InitializeComponent();
+                                    InitDatabase();
+                                    LoadCampaignContext();
+                                    LoadCustomInstructions();
+                                    ChatArea.Document.Blocks.Clear();
+                                    AppendColoredText("D&D AI Dungeon Master started!\n\n", Colors.Black);
+                                    AppendColoredText("I am YOUR Dungeon Master, ready to host YOUR campaign.\n\n", Colors.Black);
+                                    AppendColoredText("What would you like me to know about your campaign?\n", Colors.Black);
+                                    AppendColoredText("• Setting and world details\n", Colors.Black);
+                                    AppendColoredText("• Player characters\n", Colors.Black);
+                                    AppendColoredText("• Current story/quest\n", Colors.Black);
+                                    AppendColoredText("• House rules or preferences\n\n", Colors.Black);
+                                    AppendColoredText("Or just start playing: \"The party enters...\"\n\n", Colors.Black);
+                                    AppendColoredText("I will remember everything from our entire campaign!\n\n", Colors.Black);
+                                    LoadAndDisplayConversationHistory();
+                                    LoadColors();
+                                    LoadCharacterSheet();
+                                    LoadCombatState(); // Load persistent combat state
+                                }
+                            
+                                // Updated InitDatabase with CombatState table
+                                private void InitDatabase()
+                                {
+                                    try
+                                    {
+                                        Directory.CreateDirectory(Path.GetDirectoryName(dbPath));
+                                    
+                                        using (var conn = new SQLiteConnection($"Data Source={dbPath};Version=3;"))
+                                        {
+                                            conn.Open();
+                                        
+                                            // Enhanced conversations table with session tracking
+                                            string createConversationsTable = @"
+                                                CREATE TABLE IF NOT EXISTS Conversations (
+                                                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    Timestamp TEXT NOT NULL,
+                                                    UserInput TEXT NOT NULL,
+                                                    AIResponse TEXT,
+                                                    NPC TEXT,
+                                                    SessionId TEXT,
+                                                    IsCampaignInfo INTEGER DEFAULT 0
+                                                )";
+                                            using (var cmd = new SQLiteCommand(createConversationsTable, conn))
+                                            {
+                                                cmd.ExecuteNonQuery();
+                                            }
+                                        
+                                            // Characters table with Notes column
+                                            string createCharactersTable = @"
+                                                CREATE TABLE IF NOT EXISTS Characters (
+                                                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    Name TEXT NOT NULL,
+                                                    Class TEXT,
+                                                    Race TEXT,
+                                                    Level INTEGER DEFAULT 1,
+                                                    HP TEXT DEFAULT '',
+                                                    AC TEXT DEFAULT '',
+                                                    Strength TEXT DEFAULT '10',
+                                                    Dexterity TEXT DEFAULT '10',
+                                                    Constitution TEXT DEFAULT '10',
+                                                    Intelligence TEXT DEFAULT '10',
+                                                    Wisdom TEXT DEFAULT '10',
+                                                    Charisma TEXT DEFAULT '10',
+                                                    Notes TEXT DEFAULT '',
+                                                    CreatedDate TEXT NOT NULL
+                                                )";
+                                            using (var cmd = new SQLiteCommand(createCharactersTable, conn))
+                                            {
+                                                cmd.ExecuteNonQuery();
+                                            }
+                                        
+                                            // Inventory table (kept for compatibility, no active use)
+                                            string createInventoryTable = @"
+                                                CREATE TABLE IF NOT EXISTS Inventory (
+                                                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    CharacterId INTEGER NOT NULL,
+                                                    ItemName TEXT NOT NULL,
+                                                    Quantity INTEGER DEFAULT 1,
+                                                    ItemType TEXT,
+                                                    Description TEXT,
+                                                    LastModified TEXT NOT NULL,
+                                                    FOREIGN KEY (CharacterId) REFERENCES Characters(Id)
+                                                )";
+                                            using (var cmd = new SQLiteCommand(createInventoryTable, conn))
+                                            {
+                                                cmd.ExecuteNonQuery();
+                                            }
+                                        
+                                            // Inventory changes log (kept for compatibility, no active use)
+                                            string createInventoryLogTable = @"
+                                                CREATE TABLE IF NOT EXISTS InventoryLog (
+                                                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    CharacterId INTEGER NOT NULL,
+                                                    ItemName TEXT NOT NULL,
+                                                    ChangeType TEXT NOT NULL,
+                                                    Quantity INTEGER NOT NULL,
+                                                    Reason TEXT,
+                                                    Timestamp TEXT NOT NULL,
+                                                    FOREIGN KEY (CharacterId) REFERENCES Characters(Id)
+                                                )";
+                                            using (var cmd = new SQLiteCommand(createInventoryLogTable, conn))
+                                            {
+                                                cmd.ExecuteNonQuery();
+                                            }
+                                        
+                                            // New CombatState table
+                                            string createCombatStateTable = @"
+                                                CREATE TABLE IF NOT EXISTS CombatState (
+                                                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    Name TEXT NOT NULL,
+                                                    Initiative INTEGER,
+                                                    HP INTEGER,
+                                                    Status TEXT DEFAULT 'Active',
+                                                    SessionId TEXT,
+                                                    TurnOrder INTEGER
+                                                )";
+                                            using (var cmd = new SQLiteCommand(createCombatStateTable, conn))
+                                            {
+                                                cmd.ExecuteNonQuery();
+                                            }
+                                        
+                                            // Add columns for stats if they don't exist (for upgrades)
+                                            string[] stats = { "Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma", "Notes" };
+                                            foreach (var stat in stats)
+                                            {
+                                                string alter = $"ALTER TABLE Characters ADD COLUMN {stat} TEXT DEFAULT ''";
+                                                try
+                                                {
+                                                    using (var alterCmd = new SQLiteCommand(alter, conn))
+                                                    {
+                                                        alterCmd.ExecuteNonQuery();
+                                                    }
+                                                }
+                                                catch (SQLiteException ex)
+                                                {
+                                                    // Ignore "duplicate column" errors (column already exists)
+                                                    if (!ex.Message.ToLower().Contains("duplicate"))
+                                                        throw;
+                                                }
+                                            }
+                                        
+                                            string[] extraStats = { "HP", "AC" };
+                                            foreach (var stat in extraStats)
+                                            {
+                                                string alter = $"ALTER TABLE Characters ADD COLUMN {stat} TEXT DEFAULT ''";
+                                                try
+                                                {
+                                                    using (var alterCmd = new SQLiteCommand(alter, conn))
+                                                    {
+                                                        alterCmd.ExecuteNonQuery();
+                                                    }
+                                                }
+                                                catch (SQLiteException ex)
+                                                {
+                                                    if (!ex.Message.ToLower().Contains("duplicate"))
+                                                        throw;
+                                                }
+                                            }
+                                        
+                                            // Add new notes columns
+                                            string[] notesColumns = { "Notes1", "Notes2", "Notes3" };
+                                            foreach (var notesCol in notesColumns)
+                                            {
+                                                string alter = $"ALTER TABLE Characters ADD COLUMN {notesCol} TEXT DEFAULT ''";
+                                                try
+                                                {
+                                                    using (var alterCmd = new SQLiteCommand(alter, conn))
+                                                    {
+                                                        alterCmd.ExecuteNonQuery();
+                                                    }
+                                                }
+                                                catch (SQLiteException ex)
+                                                {
+                                                    if (!ex.Message.ToLower().Contains("duplicate"))
+                                                        throw;
+                                                }
+                                            }
+                                        
+                                            // Verify that the Characters table exists
+                                            string checkCharactersTable = "SELECT name FROM sqlite_master WHERE type='table' AND name='Characters'";
+                                            using (var cmd = new SQLiteCommand(checkCharactersTable, conn))
+                                            {
+                                                var result = cmd.ExecuteScalar();
+                                                if (result == null || result.ToString() != "Characters")
+                                                {
+                                                    throw new Exception("Failed to create Characters table.");
+                                                }
+                                            }
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        System.Windows.MessageBox.Show($"Failed to initialize database: {ex.Message}", "Database Error"); // Explicitly using System.Windows.MessageBox
+                                    }
+                                }
+                            
+                                private void DeleteDatabase()
+                                {
+                                    if (File.Exists(dbPath))
+                                    {
+                                        File.Delete(dbPath);
+                                    }
+                                }
+                            
+                                // Load campaign context from file
+                                private void LoadCampaignContext()
+                                {
+                                    string contextPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DNDAI", "campaign_context.txt");
+                                    if (File.Exists(contextPath))
+                                    {
+                                        campaignContext = File.ReadAllText(contextPath);
+                                    }
+                                }
+                            
+                                // Save campaign context to file
+                                private void SaveCampaignContext()
+                                {
+                                    string contextPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DNDAI", "campaign_context.txt");
+                                    Directory.CreateDirectory(Path.GetDirectoryName(contextPath));
+                                    File.WriteAllText(contextPath, campaignContext);
+                                }
+                            
+                                // Get comprehensive campaign memory from database
+                                private string GetCampaignMemory()
+                                {
+                                    var memory = new StringBuilder();
+
+                                    using (var conn = new SQLiteConnection($"Data Source={dbPath};Version=3;"))
+                                    {
+                                        conn.Open();
+
+                                        // Get all conversations, prioritizing campaign info and recent sessions
+                                        string query = @"
+                                            SELECT Timestamp, UserInput, AIResponse, NPC, SessionId, IsCampaignInfo 
+                                            FROM Conversations 
+                                            ORDER BY IsCampaignInfo DESC, Timestamp DESC";
+
+                                        using (var cmd = new SQLiteCommand(query, conn))
+                                        {
+                                            using (var reader = cmd.ExecuteReader())
+                                            {
+                                                var conversations = new List<string>();
+                                                
+                                                while (reader.Read())
+                                                {
+                                                    string timestamp = reader["Timestamp"].ToString();
+                                                    string userInput = reader["UserInput"].ToString();
+                                                    string aiResponse = reader["AIResponse"].ToString();
+                                                    string npc = reader["NPC"].ToString();
+                                                    bool isCampaignInfo = Convert.ToBoolean(reader["IsCampaignInfo"]);
+
+                                                    if (isCampaignInfo)
+                                                    {
+                                                        // Campaign info goes first
+                                                        conversations.Insert(0, $"[{timestamp}] CAMPAIGN INFO: {userInput}");
+                                                    }
+                                                    else
+                                                    {
+                                                        // Regular conversations
+                                                        conversations.Add($"[{timestamp}] Player: {userInput} | {npc}: {aiResponse}");
+                                                    }
+                                                }
+
+                                                // Build memory string, prioritizing recent and campaign info
+                                                foreach (string conv in conversations)
+                                                {
+                                                    if (memory.Length + conv.Length > maxContextLength)
+                                                        break;
+                                                    memory.AppendLine(conv);
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    return memory.ToString();
+                                }
+                            
+                                // Get current character inventory (kept for compatibility, no display)
+                                private string GetCharacterInventory()
+                                {
+                                    var inventory = new StringBuilder();
+
+                                    using (var conn = new SQLiteConnection($"Data Source={dbPath};Version=3;"))
+                                    {
+                                        conn.Open();
+
+                                        // Get character info
+                                        string characterQuery = "SELECT Name, Class, Race, Level FROM Characters ORDER BY CreatedDate DESC LIMIT 1";
+                                        using (var cmd = new SQLiteCommand(characterQuery, conn))
+                                        {
+                                            using (var reader = cmd.ExecuteReader())
+                                            {
+                                                if (reader.Read())
+                                                {
+                                                    string charName = reader["Name"].ToString();
+                                                    string charClass = reader["Class"].ToString();
+                                                    string charRace = reader["Race"].ToString();
+                                                    int charLevel = Convert.ToInt32(reader["Level"]);
+
+                                                    inventory.AppendLine($"CHARACTER: {charName} - Level {charLevel} {charRace} {charClass}");
+                                                    inventory.AppendLine("INVENTORY:");
+                                                }
+                                            }
+                                        }
+
+                                        // Get inventory items
+                                        string inventoryQuery = @"
+                                            SELECT i.ItemName, i.Quantity, i.ItemType, i.Description 
+                                            FROM Inventory i 
+                                            JOIN Characters c ON i.CharacterId = c.Id 
+                                            ORDER BY c.CreatedDate DESC, i.ItemName";
+                                        using (var cmd = new SQLiteCommand(inventoryQuery, conn))
+                                        {
+                                            using (var reader = cmd.ExecuteReader())
+                                            {
+                                                while (reader.Read())
+                                                {
+                                                    string itemName = reader["ItemName"].ToString();
+                                                    int quantity = Convert.ToInt32(reader["Quantity"]);
+                                                    string itemType = reader["ItemType"].ToString();
+                                                    string description = reader["Description"].ToString();
+
+                                                    inventory.AppendLine($"  {itemName} x{quantity} ({itemType})");
+                                                    if (!string.IsNullOrEmpty(description))
+                                                        inventory.AppendLine($"    {description}");
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    return inventory.ToString();
+                                }
+                            
+                                // Store conversation with enhanced metadata
+                                private void StoreConversation(string userInput, string aiResponse, string npc, bool isCampaignInfo = false)
+                                {
+                                    using (var conn = new SQLiteConnection($"Data Source={dbPath};Version=3;"))
+                                    {
+                                        conn.Open();
+                                        string insert = @"
+                                            INSERT INTO Conversations (Timestamp, UserInput, AIResponse, NPC, SessionId, IsCampaignInfo) 
+                                            VALUES (@timestamp, @userInput, @aiResponse, @npc, @sessionId, @isCampaignInfo)";
+                                        using (var cmd = new SQLiteCommand(insert, conn))
+                                        {
+                                            cmd.Parameters.AddWithValue("@timestamp", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                                            cmd.Parameters.AddWithValue("@userInput", userInput);
+                                            cmd.Parameters.AddWithValue("@aiResponse", aiResponse);
+                                            cmd.Parameters.AddWithValue("@npc", npc);
+                                            cmd.Parameters.AddWithValue("@sessionId", currentSession);
+                                            cmd.Parameters.AddWithValue("@isCampaignInfo", isCampaignInfo ? 1 : 0);
+                                            cmd.ExecuteNonQuery();
+                                        }
+                                    }
+                                }
+                            
+                                // Add or update inventory item (kept for compatibility, no button logic)
+                                private void UpdateInventory(string itemName, int quantityChange, string reason = "")
+                                {
+                                    using (var conn = new SQLiteConnection($"Data Source={dbPath};Version=3;"))
+                                    {
+                                        conn.Open();
+
+                                        // Get current character ID
+                                        int characterId = 0;
+                                        string charQuery = "SELECT Id FROM Characters ORDER BY CreatedDate DESC LIMIT 1";
+                                        using (var cmd = new SQLiteCommand(charQuery, conn))
+                                        {
+                                            var result = cmd.ExecuteScalar();
+                                            if (result != null)
+                                                characterId = Convert.ToInt32(result);
+                                        }
+
+                                        if (characterId == 0)
+                                        {
+                                            // Create default character if none exists
+                                            string createChar = "INSERT INTO Characters (Name, Class, Race, Level, CreatedDate) VALUES ('Adventurer', 'Fighter', 'Human', 1, @date)";
+                                            using (var cmd = new SQLiteCommand(createChar, conn))
+                                            {
+                                                cmd.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                                                cmd.ExecuteNonQuery();
+                                            }
+                                            characterId = 1; // First character will have ID 1
+                                        }
+
+                                        // Check if item exists
+                                        string checkQuery = "SELECT Id, Quantity FROM Inventory WHERE CharacterId = @charId AND ItemName = @itemName";
+                                        using (var cmd = new SQLiteCommand(checkQuery, conn))
+                                        {
+                                            cmd.Parameters.AddWithValue("@charId", characterId);
+                                            cmd.Parameters.AddWithValue("@itemName", itemName);
+                                            using (var reader = cmd.ExecuteReader())
+                                            {
+                                                if (reader.Read())
+                                                {
+                                                    // Update existing item
+                                                    int itemId = Convert.ToInt32(reader["Id"]);
+                                                    int currentQuantity = Convert.ToInt32(reader["Quantity"]);
+                                                    int newQuantity = Math.Max(0, currentQuantity + quantityChange);
+
+                                                    if (newQuantity > 0)
+                                                    {
+                                                        string updateQuery = "UPDATE Inventory SET Quantity = @qty, LastModified = @date WHERE Id = @id";
+                                                        using (var updateCmd = new SQLiteCommand(updateQuery, conn))
+                                                        {
+                                                            updateCmd.Parameters.AddWithValue("@qty", newQuantity);
+                                                            updateCmd.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                                                            updateCmd.Parameters.AddWithValue("@id", itemId);
+                                                            updateCmd.ExecuteNonQuery();
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        // Remove item if quantity is 0
+                                                        string deleteQuery = "DELETE FROM Inventory WHERE Id = @id";
+                                                        using (var deleteCmd = new SQLiteCommand(deleteQuery, conn))
+                                                        {
+                                                            deleteCmd.Parameters.AddWithValue("@id", itemId);
+                                                            deleteCmd.ExecuteNonQuery();
+                                                        }
+                                                    }
+                                                }
+                                                else if (quantityChange > 0)
+                                                {
+                                                    // Add new item
+                                                    string insertQuery = @"
+                                                        INSERT INTO Inventory (CharacterId, ItemName, Quantity, ItemType, LastModified) 
+                                                        VALUES (@charId, @itemName, @qty, 'General', @date)";
+                                                    using (var insertCmd = new SQLiteCommand(insertQuery, conn))
+                                                    {
+                                                        insertCmd.Parameters.AddWithValue("@charId", characterId);
+                                                        insertCmd.Parameters.AddWithValue("@itemName", itemName);
+                                                        insertCmd.Parameters.AddWithValue("@qty", quantityChange);
+                                                        insertCmd.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                                                        insertCmd.ExecuteNonQuery();
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // Log the change
+                                        string logQuery = @"
+                                            INSERT INTO InventoryLog (CharacterId, ItemName, ChangeType, Quantity, Reason, Timestamp) 
+                                            VALUES (@charId, @itemName, @changeType, @qty, @reason, @date)";
+                                        using (var logCmd = new SQLiteCommand(logQuery, conn))
+                                        {
+                                            logCmd.Parameters.AddWithValue("@charId", characterId);
+                                            logCmd.Parameters.AddWithValue("@itemName", itemName);
+                                            logCmd.Parameters.AddWithValue("@changeType", quantityChange > 0 ? "ADD" : "REMOVE");
+                                            logCmd.Parameters.AddWithValue("@qty", Math.Abs(quantityChange));
+                                            logCmd.Parameters.AddWithValue("@reason", reason);
+                                            logCmd.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                                            logCmd.ExecuteNonQuery();
+                                        }
+                                    }
+                                }
+                            
+                                // Load combat state from DB
+                                private void LoadCombatState()
+                                {
+                                    combatants.Clear();
+                                    using (var conn = new SQLiteConnection($"Data Source={dbPath};Version=3;"))
+                                    {
+                                        conn.Open();
+                                        string query = "SELECT Name, Initiative, HP, Status FROM CombatState WHERE SessionId = @session ORDER BY TurnOrder";
+                                        using (var cmd = new SQLiteCommand(query, conn))
+                                        {
+                                            cmd.Parameters.AddWithValue("@session", currentSession);
+                                            using (var reader = cmd.ExecuteReader())
+                                            {
+                                                while (reader.Read())
+                                                {
+                                                    combatants.Add(new Combatant
+                                                    {
+                                                        Name = reader["Name"].ToString(),
+                                                        Initiative = Convert.ToInt32(reader["Initiative"]),
+                                                        HP = Convert.ToInt32(reader["HP"]),
+                                                        Status = reader["Status"].ToString()
+                                                    });
+                                                }
+                                            }
+                                        }
+                                    }
+                                    UpdateCombatantsList();
+                                    if (combatants.Any()) isInCombat = true;
+                                }
+                            
+                                // Save combat state to DB
+                                private void SaveCombatState()
+                                {
+                                    using (var conn = new SQLiteConnection($"Data Source={dbPath};Version=3;"))
+                                    {
+                                        conn.Open();
+                                        // Clear old state
+                                        string delete = "DELETE FROM CombatState WHERE SessionId = @session";
+                                        using (var cmd = new SQLiteCommand(delete, conn))
+                                        {
+                                            cmd.Parameters.AddWithValue("@session", currentSession);
+                                            cmd.ExecuteNonQuery();
+                                        }
+                                        // Insert new
+                                        for (int i = 0; i < combatants.Count; i++)
+                                        {
+                                            string insert = @"INSERT INTO CombatState (Name, Initiative, HP, Status, SessionId, TurnOrder) 
+                                                              VALUES (@name, @init, @hp, @status, @session, @order)";
+                                            using (var cmd = new SQLiteCommand(insert, conn))
+                                            {
+                                                cmd.Parameters.AddWithValue("@name", combatants[i].Name);
+                                                cmd.Parameters.AddWithValue("@init", combatants[i].Initiative);
+                                                cmd.Parameters.AddWithValue("@hp", combatants[i].HP);
+                                                cmd.Parameters.AddWithValue("@status", combatants[i].Status);
+                                                cmd.Parameters.AddWithValue("@session", currentSession);
+                                                cmd.Parameters.AddWithValue("@order", i);
+                                                cmd.ExecuteNonQuery();
+                                            }
+                                        }
+                                    }
+                                }
+                            
+                                private void LoadCustomInstructions()
+                                {
+                                    if (File.Exists(customInstructionsPath))
+                                    {
+                                        customInstructions = File.ReadAllText(customInstructionsPath).Trim();
+                                    }
+                                    else
+                                    {
+                                        // Default instructions if file doesn't exist
+                                        customInstructions = @"You are a strict D&D 5e Dungeon Master. Always follow these rules:
+                        - Use immersive, descriptive language.
+                        - Enforce house rules: [Add your house rules here].
+                        - Remember all past events from the campaign memory.
+                        - Never break character unless asked about rules.";
+                                        SaveCustomInstructions(); // Save defaults to file
+                                    }
+                                }
+                            
+                                // Method to save custom instructions to file
+                                private void SaveCustomInstructions()
+                                {
+                                    Directory.CreateDirectory(Path.GetDirectoryName(customInstructionsPath));
+                                    File.WriteAllText(customInstructionsPath, customInstructions);
+                                }
+                            
+                                // Button click handler to edit custom instructions (opens a simple dialog)
+                                private void CustomInstructionsButton_Click(object sender, RoutedEventArgs e)
+                                {
+                                    var dialog = new System.Windows.Forms.Form
+                                    {
+                                        Text = "Edit Custom Instructions",
+                                        Size = new System.Drawing.Size(600, 400)
+                                    };
+                                    var textBox = new System.Windows.Forms.TextBox
+                                    {
+                                        Multiline = true,
+                                        ScrollBars = System.Windows.Forms.ScrollBars.Vertical,
+                                        Dock = System.Windows.Forms.DockStyle.Fill,
+                                        Text = customInstructions
+                                    };
+                                    var saveButton = new System.Windows.Forms.Button
+                                    {
+                                        Text = "Save",
+                                        Dock = System.Windows.Forms.DockStyle.Bottom
+                                    };
+                                    saveButton.Click += (s, ev) =>
+                                    {
+                                        customInstructions = textBox.Text.Trim();
+                                        SaveCustomInstructions();
+                                        AppendColoredText("[System]: Custom instructions updated.\n", Colors.Gray);
+                                        dialog.Close();
+                                    };
+                                    dialog.Controls.Add(textBox);
+                                    dialog.Controls.Add(saveButton);
+                                    dialog.ShowDialog();
+                                }
+                            
+                                // Dice roll button click
+                                private void RollDiceButton_Click(object sender, RoutedEventArgs e)
+                                {
+                                    string expression = DiceExpression.Text.Trim();
+                                    if (string.IsNullOrEmpty(expression)) return;
+                                
+                                    try
+                                    {
+                                        int result = ParseAndRollDice(expression);
+                                        AppendColoredText($"[Roll] {expression} = {result}\n", Colors.Blue);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        AppendColoredText($"[Error] Invalid dice expression: {ex.Message}\n", Colors.Red); // Removed unused 'ex' variable
+                                    }
+                                }
+                            
+                                // Parse and roll dice expression (e.g., "4d10 + 6 + 2d4")
+                                private int ParseAndRollDice(string expression)
+                                {
+                                    int total = 0;
+                                    string[] parts = expression.Replace(" ", "").Split('+');
+                                    foreach (string part in parts)
+                                    {
+                                        if (part.Contains('d'))
+                                        {
+                                            string[] dice = part.Split('d');
+                                            if (dice.Length != 2 || !int.TryParse(dice[0], out int num) || !int.TryParse(dice[1], out int sides))
+                                                throw new Exception("Invalid dice format");
+                                            for (int i = 0; i < num; i++)
+                                            {
+                                                total += random.Next(1, sides + 1);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (!int.TryParse(part, out int bonus))
+                                                throw new Exception("Invalid bonus");
+                                            total += bonus;
+                                        }
+                                    }
+                                    return total;
+                                }
+                            
+                                // Combat buttons
+                                private void AddCombatantButton_Click(object sender, RoutedEventArgs e)
+                                {
+                                    string name = Microsoft.VisualBasic.Interaction.InputBox("Enter name:", "Add Combatant");
+                                    if (string.IsNullOrEmpty(name)) return;
+                                    string initStr = Microsoft.VisualBasic.Interaction.InputBox("Enter initiative:", "Add Combatant");
+                                    if (!int.TryParse(initStr, out int init)) return;
+                                    string hpStr = Microsoft.VisualBasic.Interaction.InputBox("Enter HP:", "Add Combatant");
+                                    if (!int.TryParse(hpStr, out int hp)) return;
+                                
+                                    combatants.Add(new Combatant { Name = name, Initiative = init, HP = hp, Status = "Active" });
+                                    UpdateCombatantsList();
+                                }
+                            
+                                private void StartCombatButton_Click(object sender, RoutedEventArgs e)
+                                {
+                                    if (combatants.Count == 0) return;
+                                    combatants = combatants.OrderByDescending(c => c.Initiative).ToList();
+                                    currentTurnIndex = 0;
+                                    isInCombat = true;
+                                    SaveCombatState();
+                                    AppendColoredText("[Combat Started] Current turn: " + combatants[currentTurnIndex].Name + "\n", Colors.Red);
+                                    UpdateCombatantsList();
+                                }
+                            
+                                private void NextTurnButton_Click(object sender, RoutedEventArgs e)
+                                {
+                                    if (!isInCombat || combatants.Count == 0) return;
+                                    currentTurnIndex = (currentTurnIndex + 1) % combatants.Count;
+                                    AppendColoredText("[Next Turn] " + combatants[currentTurnIndex].Name + "\n", Colors.Red);
+                                    UpdateCombatantsList();
+                                }
+                            
+                                private void EndCombatButton_Click(object sender, RoutedEventArgs e)
+                                {
+                                    isInCombat = false;
+                                    combatants.Clear();
+                                    SaveCombatState();
+                                    UpdateCombatantsList();
+                                    AppendColoredText("[Combat Ended]\n", Colors.Red);
+                                }
+                            
+                                private void UpdateCombatantsList()
+                                {
+                                    CombatantsList.ItemsSource = null;
+                                    CombatantsList.ItemsSource = combatants;
+                                }
+                            
+                                // Get current combat state string for prompts
+                                private string GetCombatState()
+                                {
+                                    if (!isInCombat) return "";
+                                    var sb = new StringBuilder("CURRENT COMBAT STATE:\n");
+                                    sb.AppendLine("Turn: " + combatants[currentTurnIndex].Name);
+                                    foreach (var c in combatants)
+                                    {
+                                        sb.AppendLine($"{c.Name} (Init: {c.Initiative}, HP: {c.HP}, Status: {c.Status})");
+                                    }
+                                    return sb.ToString();
+                                }
+                            
+                                // Parse AI response for combat updates like [CombatUpdate: Goblin HP=-5]
+                                private void ApplyCombatUpdates(string aiResponse)
+                                {
+                                    if (!isInCombat) return;
+                                    var regex = new Regex(@"\[CombatUpdate: (\w+) HP=(-?\d+)\]");
+                                    var matches = regex.Matches(aiResponse);
+                                    foreach (Match match in matches)
+                                    {
+                                        string name = match.Groups[1].Value;
+                                        int delta = int.Parse(match.Groups[2].Value);
+                                        var combatant = combatants.FirstOrDefault(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                                        if (combatant != null)
+                                        {
+                                            combatant.HP += delta;
+                                            if (combatant.HP <= 0)
+                                            {
+                                                combatant.Status = "Defeated";
+                                                combatant.HP = 0;
+                                            }
+                                            AppendColoredText($"[Combat Update] {name} HP changed by {delta}. New HP: {combatant.HP}\n", Colors.Purple);
+                                        }
+                                    }
+                                    SaveCombatState();
+                                    UpdateCombatantsList();
+                                }
+                            
+                                // Enhanced AI response generator with comprehensive memory and inventory tracking
+                                private async Task<(string response, string npc)> GenerateResponseAsync(string userInput)
+                                {
+                                    // Handle special commands
+                                    if (userInput.ToLower().Contains("show inventory"))
+                                    {
+                                        string inventory = GetCharacterInventory();
+                                        // Removed inventory display logic as per request
+                                        return ("Inventory details available but not displayed.", "System");
+                                    }
+                                
+                                    // Auto-detect combat start if not in combat
+                                    if (!isInCombat && (userInput.ToLower().Contains("attack") || userInput.ToLower().Contains("combat starts")))
+                                    {
+                                        isInCombat = true;
+                                        AppendColoredText("[System] Combat detected and started.\n", Colors.Red);
+                                    }
+                                
+                                    // Check if this is campaign setup information
+                                    if (IsCampaignSetup(userInput))
+                                    {
+                                        campaignContext += userInput + "\n";
+                                        SaveCampaignContext();
+                                        string setupResponse = await GenerateCampaignSetupResponseAsync(userInput);
+                                        StoreConversation(userInput, setupResponse, "DM", true); // Mark as campaign info
+                                        return (setupResponse, "DM");
+                                    }
+                                
+                                    // Determine the appropriate response mode and generate response
+                                    var (response, npc, mode) = await DetermineResponseModeAsync(userInput);
+                                    currentMode = mode;
+
+                                    // Store the conversation
+                                    StoreConversation(userInput, response, npc);
+
+                                    ApplyCombatUpdates(response); // New: Apply updates after getting response
+
+                                    return (response, npc);
+                                }
+                            
+                                // Detect inventory changes from user actions (kept for compatibility, no display)
+                                private List<InventoryChange> DetectInventoryChanges(string userInput)
+                                {
+                                    var changes = new List<InventoryChange>();
+                                    string input = userInput.ToLower();
+                                    
+                                    // Manual inventory additions
+                                    if (input.Contains("add") && (input.Contains("sword") || input.Contains("weapon") || input.Contains("item") || input.Contains("to my inventory")))
+                                    {
+                                        if (input.Contains("shortsword") || input.Contains("short sword"))
+                                        {
+                                            changes.Add(new InventoryChange { ItemName = "Shortsword", QuantityChange = 1, Reason = "Added to inventory" });
+                                        }
+                                        else if (input.Contains("longsword") || input.Contains("long sword"))
+                                        {
+                                            changes.Add(new InventoryChange { ItemName = "Longsword", QuantityChange = 1, Reason = "Added to inventory" });
+                                        }
+                                        else if (input.Contains("dagger"))
+                                        {
+                                            changes.Add(new InventoryChange { ItemName = "Dagger", QuantityChange = 1, Reason = "Added to inventory" });
+                                        }
+                                        else if (input.Contains("bow"))
+                                        {
+                                            changes.Add(new InventoryChange { ItemName = "Bow", QuantityChange = 1, Reason = "Added to inventory" });
+                                        }
+                                        else if (input.Contains("shield"))
+                                        {
+                                            changes.Add(new InventoryChange { ItemName = "Shield", QuantityChange = 1, Reason = "Added to inventory" });
+                                        }
+                                        else if (input.Contains("armor") || input.Contains("leather") || input.Contains("chain") || input.Contains("plate"))
+                                        {
+                                            changes.Add(new InventoryChange { ItemName = "Armor", QuantityChange = 1, Reason = "Added to inventory" });
+                                        }
+                                        else if (input.Contains("potion"))
+                                        {
+                                            changes.Add(new InventoryChange { ItemName = "Health Potion", QuantityChange = 1, Reason = "Added to inventory" });
+                                        }
+                                        else if (input.Contains("gold") || input.Contains("coin"))
+                                        {
+                                            changes.Add(new InventoryChange { ItemName = "Gold Coins", QuantityChange = 10, Reason = "Added to inventory" });
+                                        }
+                                        else
+                                        {
+                                            // Generic item addition
+                                            changes.Add(new InventoryChange { ItemName = "Item", QuantityChange = 1, Reason = "Added to inventory" });
+                                        }
+                                    }
+
+                                    // Ammunition usage
+                                    if (input.Contains("shoot") || input.Contains("fire") || input.Contains("use arrow"))
+                                    {
+                                        changes.Add(new InventoryChange { ItemName = "Arrow", QuantityChange = -1, Reason = "Used in combat" });
+                                    }
+                                    if (input.Contains("use bolt") || input.Contains("fire crossbow"))
+                                    {
+                                        changes.Add(new InventoryChange { ItemName = "Crossbow Bolt", QuantityChange = -1, Reason = "Used in combat" });
+                                    }
+
+                                    // Spell components
+                                    if (input.Contains("cast fireball") || input.Contains("cast spell"))
+                                    {
+                                        changes.Add(new InventoryChange { ItemName = "Spell Component Pouch", QuantityChange = -1, Reason = "Used spell component" });
+                                    }
+
+                                    // Health potions
+                                    if (input.Contains("drink potion") || input.Contains("use health potion"))
+                                    {
+                                        changes.Add(new InventoryChange { ItemName = "Health Potion", QuantityChange = -1, Reason = "Used health potion" });
+                                    }
+
+                                    // Picking up items
+                                    if (input.Contains("pick up") || input.Contains("collect") || input.Contains("gather"))
+                                    {
+                                        if (input.Contains("arrow") || input.Contains("bolt"))
+                                        {
+                                            changes.Add(new InventoryChange { ItemName = "Arrow", QuantityChange = 1, Reason = "Picked up from ground" });
+                                        }
+                                        if (input.Contains("gold") || input.Contains("coin"))
+                                        {
+                                            changes.Add(new InventoryChange { ItemName = "Gold Coins", QuantityChange = 10, Reason = "Found treasure" });
+                                        }
+                                    }
+
+                                    // Buying items
+                                    if (input.Contains("buy") || input.Contains("purchase"))
+                                    {
+                                        if (input.Contains("potion"))
+                                        {
+                                            changes.Add(new InventoryChange { ItemName = "Health Potion", QuantityChange = 1, Reason = "Purchased from merchant" });
+                                        }
+                                        if (input.Contains("arrow"))
+                                        {
+                                            changes.Add(new InventoryChange { ItemName = "Arrow", QuantityChange = 20, Reason = "Purchased from merchant" });
+                                        }
+                                    }
+
+                                    return changes;
+                                }
+                            
+                                // Check if user input is an inventory management command (kept for compatibility, no button logic)
+                                private bool IsInventoryCommand(string userInput, out InventoryChange change)
+                                {
+                                    change = new InventoryChange();
+                                    string input = userInput.ToLower().Trim();
+
+                                    // Parse "add [item] [quantity]" commands
+                                    if (input.StartsWith("add "))
+                                    {
+                                        var parts = input.Substring(4).Split(' ');
+                                        if (parts.Length >= 2)
+                                        {
+                                            int quantity;
+                                            if (int.TryParse(parts[parts.Length - 1], out quantity))
+                                            {
+                                                string itemName = string.Join(" ", parts.Take(parts.Length - 1));
+                                                change = new InventoryChange 
+                                                { 
+                                                    ItemName = char.ToUpper(itemName[0]) + itemName.Substring(1), 
+                                                    QuantityChange = quantity, 
+                                                    Reason = "Manual addition" 
+                                                };
+                                                return true;
+                                            }
+                                        }
+                                    }
+
+                                    // Parse "remove [item] [quantity]" commands
+                                    if (input.StartsWith("remove "))
+                                    {
+                                        var parts = input.Substring(7).Split(' ');
+                                        if (parts.Length >= 2)
+                                        {
+                                            int quantity;
+                                            if (int.TryParse(parts[parts.Length - 1], out quantity))
+                                            {
+                                                string itemName = string.Join(" ", parts.Take(parts.Length - 1));
+                                                change = new InventoryChange 
+                                                { 
+                                                    ItemName = char.ToUpper(itemName[0]) + itemName.Substring(1), 
+                                                    QuantityChange = -quantity, 
+                                                    Reason = "Manual removal" 
+                                                };
+                                                return true;
+                                            }
+                                        }
+                                    }
+
+                                    return false;
+                                }
+                            
+                                // Check if user is providing campaign setup information
+                                private bool IsCampaignSetup(string userInput)
+                                {
+                                    string[] setupKeywords = { 
+                                        "campaign is", "setting is", "world is", "characters are", "players are", 
+                                        "story is", "quest is", "house rules", "my campaign", "the campaign",
+                                        "character name", "character class", "character race", "party consists",
+                                        "world setting", "campaign setting", "adventure takes place"
+                                    };
+                                    return setupKeywords.Any(keyword => userInput.ToLower().Contains(keyword));
+                                }
+                            
+                                // Generate response for campaign setup
+                                private async Task<string> GenerateCampaignSetupResponseAsync(string userInput)
+                                {
+                                    string prompt = $@"{customInstructions}
+                                
+                        You are the Dungeon Master for this player's campaign. They have just provided campaign information: ""{userInput}""
+                                
+                        Acknowledge their campaign details and show enthusiasm for their world. Ask follow-up questions if needed to better understand their campaign. Be supportive and excited about their creative choices. This information will be remembered for the entire campaign.
+                                
+                        DM:";
+                                
+                                    return await GetAIResponseAsync(prompt);
+                                }
+                            
+                                // Determine how to respond based on user input
+                                private async Task<(string response, string npc, string mode)> DetermineResponseModeAsync(string userInput)
+                                {
+                                    userInput = userInput.ToLower();
+
+                                    // Removed inventory command check
+
+                                    // Check for specific NPC interactions
+                                    if (IsNPCDirective(userInput, out string npcName))
+                                    {
+                                        string response = await GenerateNPCRresponseAsync(npcName, userInput);
+                                        return (response, npcName, "NPC");
+                                    }
+
+                                    // Check for DM/scene descriptions
+                                    if (IsSceneDescription(userInput))
+                                    {
+                                        string response = await GenerateDMResponseAsync(userInput);
+                                        return (response, "DM", "DM");
+                                    }
+
+                                    // Check for rules questions
+                                    if (IsRulesQuestion(userInput))
+                                    {
+                                        string response = await GenerateRulesResponseAsync(userInput);
+                                        return (response, "Rules Assistant", "Assistant");
+                                    }
+
+                                    // Check for world-building requests
+                                    if (IsWorldBuildingRequest(userInput))
+                                    {
+                                        string response = await GenerateWorldBuildingResponseAsync(userInput);
+                                        return (response, "World Builder", "Assistant");
+                                    }
+
+                                    // Default to conversational DM mode
+                                    string defaultResponse = await GenerateConversationalResponseAsync(userInput);
+                                    return (defaultResponse, "DM", "DM");
+                                }
+                            
+                                // Check if user is directly addressing an NPC
+                                private bool IsNPCDirective(string userInput, out string npcName)
+                                {
+                                    npcName = "";
+
+                                    if (userInput.Contains("the innkeeper") || userInput.Contains("tavern keeper") || userInput.Contains("bartender"))
+                                    {
+                                        npcName = "Innkeeper";
+                                        return true;
+                                    }
+                                    if (userInput.Contains("the guard") || userInput.Contains("city guard"))
+                                    {
+                                        npcName = "City Guard";
+                                        return true;
+                                    }
+                                    if (userInput.Contains("the merchant") || userInput.Contains("shopkeeper"))
+                                    {
+                                        npcName = "Merchant";
+                                        return true;
+                                    }
+                                    if (userInput.Contains("the wizard") || userInput.Contains("mage"))
+                                    {
+                                        npcName = "Wizard";
+                                        return true;
+                                    }
+                                    if (userInput.Contains("the dragon") || userInput.Contains("dragon"))
+                                    {
+                                        npcName = "Dragon";
+                                        return true;
+                                    }
+                                    if (userInput.Contains("the mayor") || userInput.Contains("lord"))
+                                    {
+                                        npcName = "Mayor";
+                                        return true;
+                                    }
+
+                                    return false;
+                                }
+                            
+                                // Check if user is describing a scene
+                                private bool IsSceneDescription(string userInput)
+                                {
+                                    string[] sceneKeywords = { "enters", "walks into", "approaches", "sees", "notices", "finds", "discovers", "comes across" };
+                                    return sceneKeywords.Any(keyword => userInput.Contains(keyword));
+                                }
+                            
+                                // Check if user is asking about rules
+                                private bool IsRulesQuestion(string userInput)
+                                {
+                                    string[] rulesKeywords = { "rule", "rules", "how does", "what's the", "can i", "do i", "roll", "d20", "advantage", "disadvantage" };
+                                    return rulesKeywords.Any(keyword => userInput.Contains(keyword));
+                                }
+                            
+                                // Check if user is requesting world-building help
+                                private bool IsWorldBuildingRequest(string userInput)
+                                {
+                                    string[] worldBuildingKeywords = { "create", "build", "design", "generate", "make up", "invent", "new city", "new town", "new npc", "new quest" };
+                                    return worldBuildingKeywords.Any(keyword => userInput.Contains(keyword));
+                                }
+                            
+                                // Generate NPC response with comprehensive memory
+                                private async Task<string> GenerateNPCRresponseAsync(string npcName, string userInput)
+                                {
+                                    string campaignMemory = GetCampaignMemory();
+                                    string inventory = GetCharacterInventory();
+                                    string combatState = GetCombatState();
+
+                                    string prompt = $@"{customInstructions}
+                                
+                        You are roleplaying as a {npcName} in this player's D&D campaign. 
+                                
+                        CAMPAIGN CONTEXT:
+                        {campaignContext}
+                                
+                        COMPLETE CAMPAIGN MEMORY (everything that has happened):
+                        {campaignMemory}
+                                
+                        PLAYER CHARACTER INVENTORY:
+                        {inventory}
+                                
+                        {combatState}
+                                
+                        If updating combat (e.g., damage), include structured updates like [CombatUpdate: EntityName HP=-Amount] in your response before the narrative.
+                                
+                        The player has said: ""{userInput}""
+                                
+                        Respond naturally as this character would, considering ALL the campaign context and history. Be in character and respond to what they said. Remember everything that has happened in the campaign and refer to previous events when appropriate. Keep it conversational and immersive.
+                                
+                        {npcName}:";
+                                
+                                    return await GetAIResponseAsync(prompt);
+                                }
+                            
+                                // Generate DM response for scene descriptions with comprehensive memory
+                                private async Task<string> GenerateDMResponseAsync(string userInput)
+                                {
+                                    string campaignMemory = GetCampaignMemory();
+                                    string inventory = GetCharacterInventory();
+                                    string combatState = GetCombatState();
+
+                                    string prompt = $@"{customInstructions}
+                                
+                        You are the Dungeon Master for this player's D&D campaign. 
+                                
+                        CAMPAIGN CONTEXT:
+                        {campaignContext}
+                                
+                        COMPLETE CAMPAIGN MEMORY (everything that has happened):
+                        {campaignMemory}
+                                
+                        PLAYER CHARACTER INVENTORY:
+                        {inventory}
+                                
+                        {combatState}
+                                
+                        If updating combat (e.g., damage), include structured updates like [CombatUpdate: EntityName HP=-Amount] in your response before the narrative.
+                                
+                        The player has described: ""{userInput}""
+                                
+                        As the DM, describe what happens next in the scene, considering ALL the campaign context and history. Be descriptive, atmospheric, and engaging. Include sensory details and set the mood. Remember everything that has happened in the campaign and build upon previous events. Keep it concise but immersive.
+                                
+                        DM:";
+                                
+                                    return await GetAIResponseAsync(prompt);
+                                }
+                            
+                                // Generate rules response
+                                private async Task<string> GenerateRulesResponseAsync(string userInput)
+                                {
+                                    string prompt = $@"{customInstructions}
+                                
+                        You are a helpful D&D rules assistant. The player asks: ""{userInput}""
+                                
+                        Provide a clear, accurate explanation of the relevant D&D 5e rules. Be helpful and concise. If you're not sure about a specific rule, say so and suggest where they might find more information.
+                                
+                        Rules Assistant:";
+                                
+                                    return await GetAIResponseAsync(prompt);
+                                }
+                            
+                                // Generate world-building response
+                                private async Task<string> GenerateWorldBuildingResponseAsync(string userInput)
+                                {
+                                    string prompt = $@"{customInstructions}
+                                
+                        You are a creative D&D world-building assistant. The player wants to: ""{userInput}""
+                                
+                        Help them create interesting, detailed content for their D&D campaign. Be creative and provide useful suggestions. Include specific details that would make their world more engaging.
+                                
+                        World Builder:";
+                                
+                                    return await GetAIResponseAsync(prompt);
+                                }
+                            
+                                // Generate conversational response with comprehensive memory
+                                private async Task<string> GenerateConversationalResponseAsync(string userInput)
+                                {
+                                    string campaignMemory = GetCampaignMemory();
+                                    string inventory = GetCharacterInventory();
+                                    string combatState = GetCombatState();
+
+                                    string prompt = $@"{customInstructions}
+                                
+                        You are the Dungeon Master for this player's D&D campaign. 
+                                
+                        CAMPAIGN CONTEXT:
+                        {campaignContext}
+                                
+                        COMPLETE CAMPAIGN MEMORY (everything that has happened):
+                        {campaignMemory}
+                                
+                        PLAYER CHARACTER INVENTORY:
+                        {inventory}
+                                
+                        {combatState}
+                                
+                        If updating combat (e.g., damage), include structured updates like [CombatUpdate: EntityName HP=-Amount] in your response before the narrative.
+                                
+                        The player says: ""{userInput}""
+                                
+                        Respond naturally and helpfully as their DM. You can ask clarifying questions, make suggestions, or help move the story forward. Remember EVERYTHING that has happened in the campaign and refer to previous events when appropriate. Be conversational and supportive.
+                                
+                        DM:";
+                                
+                                    return await GetAIResponseAsync(prompt);
+                                }
+                            
+                                // Get response from Ollama
+                                private async Task<string> GetAIResponseAsync(string prompt)
+                                {
+                                    try
+                                    {
+                                        var request = new
+                                        {
+                                            model = AI_MODEL,
+                                            prompt = prompt,
+                                            stream = false,
+                                            options = new
+                                            {
+                                                temperature = 0.3, // Lowered for less creativity
+                                                top_p = 0.9,
+                                                max_tokens = 2000
+                                            }
+                                        };
+                                    
+                                        var json = JsonSerializer.Serialize(request);
+                                        var content = new StringContent(json, Encoding.UTF8, "application/json");
+                                    
+                                        var response = await httpClient.PostAsync(OLLAMA_URL, content);
+
+                                        if (response.IsSuccessStatusCode)
+                                        {
+                                            var responseContent = await response.Content.ReadAsStringAsync();
+                                            var ollamaResponse = JsonSerializer.Deserialize<OllamaResponse>(responseContent);
+                                            return ollamaResponse?.response?.Trim() ?? "I'm not sure how to respond to that.";
+                                        }
+                                        else
+                                        {
+                                            return $"Error: Unable to get AI response. Status: {response.StatusCode}";
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        return "Error: An issue occurred. Ensure Ollama is running and the model is installed."; // Removed unused 'ex' variable
+                                    }
+                                }
+                            
+                                // Handle Send button click
+                                private async void SendButton_Click(object sender, RoutedEventArgs e)
+                                {
+                                    string userInput = InputBox.Text.Trim();
+                                    if (string.IsNullOrEmpty(userInput))
+                                        return;
+                                
+                                    // Disable the send button while processing
+                                    SendButton.IsEnabled = false;
+                                    SendButton.Content = "Thinking...";
+                                
+                                    try
+                                    {
+                                        AppendColoredText($"You: {userInput}\n", userTextColor);
+                                        var (aiResponse, npc) = await GenerateResponseAsync(userInput);
+                                        if (npc != "System") // Don't store system responses
+                                        {
+                                            AppendColoredText($"{npc}: {aiResponse}\n", aiTextColor);
+                                        }
+                                        ChatArea.ScrollToEnd();
+                                        InputBox.Clear();
+                                    }
+                                    catch (Exception)
+                                    {
+                                        // Handle exception without using 'ex'
+                                        System.Windows.MessageBox.Show("An error occurred while processing your request.", "Error");
+                                    }
+                                    finally
+                                    {
+                                        // Re-enable the send button
+                                        SendButton.IsEnabled = true;
+                                        SendButton.Content = "Send";
+                                    }
+                                }
+                            
+                                // Load and display all previous conversations
+                                private void LoadAndDisplayConversationHistory()
+                                {
+                                    using (var conn = new SQLiteConnection($"Data Source={dbPath};Version=3;"))
+                                    {
+                                        conn.Open();
+                                        string query = "SELECT Timestamp, UserInput, AIResponse, NPC FROM Conversations ORDER BY Timestamp ASC";
+                                        using (var cmd = new SQLiteCommand(query, conn))
+                                        {
+                                            using (var reader = cmd.ExecuteReader())
+                                            {
+                                                while (reader.Read())
+                                                {
+                                                    string timestamp = reader["Timestamp"].ToString();
+                                                    string userInput = reader["UserInput"].ToString();
+                                                    string aiResponse = reader["AIResponse"].ToString();
+                                                    string npc = reader["NPC"].ToString();
+                                                    AppendColoredText($"[{timestamp}] You: {userInput}\n", userTextColor);
+                                                    if (!string.IsNullOrEmpty(aiResponse) && !string.IsNullOrEmpty(npc))
+                                                        AppendColoredText($"{npc}: {aiResponse}\n", aiTextColor);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    ChatArea.ScrollToEnd();
+                                }
+                            
+                                // Response class for Ollama
+                                private class OllamaResponse
+                                {
+                                    public string response { get; set; } = "";
+                                }
+                            
+                                // Inventory change tracking class (kept for compatibility)
+                                private class InventoryChange
+                                {
+                                    public string ItemName { get; set; } = "";
+                                    public int QuantityChange { get; set; }
+                                    public string Reason { get; set; } = "";
+                                }
+                            
+                                // Helper to append colored text to ChatArea (RichTextBox)
+                                private void AppendColoredText(string text, Color color)
+                                {
+                                    try
+                                    {
+                                        var range = new TextRange(ChatArea.Document.ContentEnd, ChatArea.Document.ContentEnd);
+                                        range.Text = text;
+                                        range.ApplyPropertyValue(TextElement.ForegroundProperty, new SolidColorBrush(color));
+
+                                        // Ensure the text is visible
+                                        ChatArea.ScrollToEnd();
+                                    }
+                                    catch (Exception)
+                                    {
+                                        // Fallback: just append plain text if there's an issue
+                                        ChatArea.AppendText(text);
+                                        ChatArea.ScrollToEnd();
+                                    }
+                                }
+                            
+                                // Load colors from config file
+                                private void LoadColors()
+                                {
+                                    if (!File.Exists(colorConfigPath)) return;
+                                    var lines = File.ReadAllLines(colorConfigPath);
+                                    foreach (var line in lines)
+                                    {
+                                        if (line.StartsWith("user="))
+                                        {
+                                            var parts = line.Substring(5).Split(',');
+                                            if (parts.Length == 3 && byte.TryParse(parts[0], out var r) && byte.TryParse(parts[1], out var g) && byte.TryParse(parts[2], out var b))
+                                                userTextColor = Color.FromRgb(r, g, b);
+                                        }
+                                        if (line.StartsWith("ai="))
+                                        {
+                                            var parts = line.Substring(3).Split(',');
+                                            if (parts.Length == 3 && byte.TryParse(parts[0], out var r) && byte.TryParse(parts[1], out var g) && byte.TryParse(parts[2], out var b))
+                                                aiTextColor = Color.FromRgb(r, g, b);
+                                        }
+                                    }
+                                }
+                            
+                                // Save colors to config file
+                                private void SaveColors()
+                                {
+                                    Directory.CreateDirectory(Path.GetDirectoryName(colorConfigPath));
+                                    File.WriteAllText(colorConfigPath, $"user={userTextColor.R},{userTextColor.G},{userTextColor.B}\nai={aiTextColor.R},{aiTextColor.G},{aiTextColor.B}");
+                                }
+                            
+                                // Color button click handler (kept for potential future use, though not in UI)
+                                private void ColorButton_Click(object sender, RoutedEventArgs e)
+                                {
+                                    var userColor = PickColor(userTextColor, "Pick your text color");
+                                    if (userColor.HasValue) userTextColor = userColor.Value;
+                                    var aiColor = PickColor(aiTextColor, "Pick AI text color");
+                                    if (aiColor.HasValue) aiTextColor = aiColor.Value;
+                                    SaveColors();
+                                    AppendColoredText("[System]: Text colors updated.\n", Colors.Gray);
+                                }
+                            
+                                // Show color picker dialog (WPF compatible)
+                                private Color? PickColor(Color initial, string title)
+                                {
+                                    using (var dlg = new System.Windows.Forms.ColorDialog())
+                                    {
+                                        dlg.Color = System.Drawing.Color.FromArgb(initial.A, initial.R, initial.G, initial.B);
+                                        dlg.FullOpen = true;
+                                        dlg.AnyColor = true;
+                                    
+                                        if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                                        {
+                                            return Color.FromArgb(255, dlg.Color.R, dlg.Color.G, dlg.Color.B);
+                                        }
+                                    }
+                                    return null;
+                                }
+                            
+                                private void SaveCharacterChanges_Click(object sender, RoutedEventArgs e)
+                                {
+                                    try
+                                    {
+                                        string name = CharacterName.Text.Trim();
+                                        string charClass = CharacterClass.Text.Trim();
+                                        string race = CharacterRace.Text.Trim();
+                                        string levelText = CharacterLevel.Text.Trim();
+                                        int level;
+                                    
+                                        if (!int.TryParse(levelText, out level) || level < 1)
+                                        {
+                                            System.Windows.MessageBox.Show("Please enter a valid level.", "Invalid Input");
+                                            return;
+                                        }
+                                    
+                                        using (var conn = new SQLiteConnection($"Data Source={dbPath};Version=3;"))
+                                        {
+                                            conn.Open();
+                                        
+                                            // Verify that the Characters table exists
+                                            string checkCharactersTable = "SELECT name FROM sqlite_master WHERE type='table' AND name='Characters'";
+                                            using (var cmd = new SQLiteCommand(checkCharactersTable, conn))
+                                            {
+                                                var result = cmd.ExecuteScalar();
+                                                if (result == null || result.ToString() != "Characters")
+                                                {
+                                                    // Attempt to recreate the table with Notes column
+                                                    string createCharactersTable = @"
+                                                        CREATE TABLE Characters (
+                                                            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                            Name TEXT NOT NULL,
+                                                            Class TEXT,
+                                                            Race TEXT,
+                                                            Level INTEGER DEFAULT 1,
+                                                            HP TEXT DEFAULT '',
+                                                            AC TEXT DEFAULT '',
+                                                            Strength TEXT DEFAULT '10',
+                                                            Dexterity TEXT DEFAULT '10',
+                                                            Constitution TEXT DEFAULT '10',
+                                                            Intelligence TEXT DEFAULT '10',
+                                                            Wisdom TEXT DEFAULT '10',
+                                                            Charisma TEXT DEFAULT '10',
+                                                            Notes TEXT DEFAULT '',
+                                                            CreatedDate TEXT NOT NULL
+                                                        )";
+                                                    using (var createCmd = new SQLiteCommand(createCharactersTable, conn))
+                                                    {
+                                                        createCmd.ExecuteNonQuery();
+                                                    }
+                                                }
+                                            }
+                                        
+                                            // Get current character ID
+                                            int characterId = 0;
+                                            string charQuery = "SELECT Id FROM Characters ORDER BY CreatedDate DESC LIMIT 1";
+                                            using (var cmd = new SQLiteCommand(charQuery, conn))
+                                            {
+                                                var result = cmd.ExecuteScalar();
+                                                if (result != null)
+                                                    characterId = Convert.ToInt32(result);
+                                            }
+                                        
+                                            string notes1 = Notes1.Text.Trim(); // Capture notes 1
+                                            string notes2 = Notes2.Text.Trim(); // Capture notes 2
+                                            string notes3 = Notes3.Text.Trim(); // Capture notes 3
+                                        
+                                            if (characterId == 0)
+                                            {
+                                                // Create a new character if none exists
+                                                string createChar = @"INSERT INTO Characters 
+                            (Name, Class, Race, Level, HP, AC, Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma, Notes, Notes1, Notes2, Notes3, CreatedDate) 
+                            VALUES (@name, @class, @race, @level, @hp, @ac, @str, @dex, @con, @int, @wis, @cha, @notes, @notes1, @notes2, @notes3, @date)";
+                                                using (var cmd = new SQLiteCommand(createChar, conn))
+                                                {
+                                                    cmd.Parameters.AddWithValue("@name", name);
+                                                    cmd.Parameters.AddWithValue("@class", charClass);
+                                                    cmd.Parameters.AddWithValue("@race", race);
+                                                    cmd.Parameters.AddWithValue("@level", level);
+                                                    string hp = StatHP.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@hp", hp);
+                                                    string ac = StatAC.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@ac", ac);
+                                                    string str = StatStrength.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@str", str);
+                                                    string dex = StatDexterity.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@dex", dex);
+                                                    string con = StatConstitution.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@con", con);
+                                                    string intel = StatIntelligence.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@int", intel);
+                                                    string wis = StatWisdom.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@wis", wis);
+                                                    string cha = StatCharisma.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@cha", cha);
+                                                    cmd.Parameters.AddWithValue("@notes", notes1); // Keep old notes for compatibility
+                                                    cmd.Parameters.AddWithValue("@notes1", notes1);
+                                                    cmd.Parameters.AddWithValue("@notes2", notes2);
+                                                    cmd.Parameters.AddWithValue("@notes3", notes3);
+                                                    cmd.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                                                    cmd.ExecuteNonQuery();
+                                                }
+                                            }
+                                            else
+                                            {
+                                                // Update existing character
+                                                string updateChar = @"UPDATE Characters SET 
+                            Name = @name, Class = @class, Race = @race, Level = @level,
+                            HP = @hp, AC = @ac,
+                            Strength = @str, Dexterity = @dex, Constitution = @con, Intelligence = @int, Wisdom = @wis, Charisma = @cha,
+                            Notes = @notes, Notes1 = @notes1, Notes2 = @notes2, Notes3 = @notes3
+                            WHERE Id = @id";
+                                                using (var cmd = new SQLiteCommand(updateChar, conn))
+                                                {
+                                                    cmd.Parameters.AddWithValue("@name", name);
+                                                    cmd.Parameters.AddWithValue("@class", charClass);
+                                                    cmd.Parameters.AddWithValue("@race", race);
+                                                    cmd.Parameters.AddWithValue("@level", level);
+                                                    string hp = StatHP.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@hp", hp);
+                                                    string ac = StatAC.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@ac", ac);
+                                                    string str = StatStrength.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@str", str);
+                                                    string dex = StatDexterity.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@dex", dex);
+                                                    string con = StatConstitution.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@con", con);
+                                                    string intel = StatIntelligence.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@int", intel);
+                                                    string wis = StatWisdom.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@wis", wis);
+                                                    string cha = StatCharisma.Text.Trim();
+                                                    cmd.Parameters.AddWithValue("@cha", cha);
+                                                    cmd.Parameters.AddWithValue("@notes", notes1); // Keep old notes for compatibility
+                                                    cmd.Parameters.AddWithValue("@notes1", notes1);
+                                                    cmd.Parameters.AddWithValue("@notes2", notes2);
+                                                    cmd.Parameters.AddWithValue("@notes3", notes3);
+                                                    cmd.Parameters.AddWithValue("@id", characterId);
+                                                    cmd.ExecuteNonQuery();
+                                                }
+                                            }
+                                        }
+                                    
+                                        SaveCombatState(); // Added to save combat data when saving character changes
+                                    
+                                        System.Windows.MessageBox.Show("Character details saved successfully!", "Success");
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        System.Windows.MessageBox.Show($"An error occurred: {ex.Message}", "Error"); // Explicitly using System.Windows.MessageBox
+                                    }
+                                }
+                            
+                                private void LoadCharacterSheet()
+                                {
+                                    using (var conn = new SQLiteConnection($"Data Source={dbPath};Version=3;"))
+                                    {
+                                        conn.Open();
+                                        string query = "SELECT Name, Class, Race, Level, HP, AC, Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma, Notes, Notes1, Notes2, Notes3 FROM Characters ORDER BY CreatedDate DESC LIMIT 1";
+                                        using (var cmd = new SQLiteCommand(query, conn))
+                                        {
+                                            using (var reader = cmd.ExecuteReader())
+                                            {
+                                                if (reader.Read())
+                                                {
+                                                    CharacterName.Text = reader["Name"].ToString();
+                                                    CharacterClass.Text = reader["Class"].ToString();
+                                                    CharacterRace.Text = reader["Race"].ToString();
+                                                    CharacterLevel.Text = reader["Level"].ToString();
+                                                    StatHP.Text = reader["HP"]?.ToString() ?? "";
+                                                    StatAC.Text = reader["AC"]?.ToString() ?? "";
+                                                    StatStrength.Text = reader["Strength"]?.ToString() ?? "10";
+                                                    StatDexterity.Text = reader["Dexterity"]?.ToString() ?? "10";
+                                                    StatConstitution.Text = reader["Constitution"]?.ToString() ?? "10";
+                                                    StatIntelligence.Text = reader["Intelligence"]?.ToString() ?? "10";
+                                                    StatWisdom.Text = reader["Wisdom"]?.ToString() ?? "10";
+                                                    StatCharisma.Text = reader["Charisma"]?.ToString() ?? "10";
+                                                    Notes1.Text = reader["Notes1"]?.ToString() ?? "";
+                                                    Notes2.Text = reader["Notes2"]?.ToString() ?? "";
+                                                    Notes3.Text = reader["Notes3"]?.ToString() ?? "";
+                                                }
+                                                else
+                                                {
+                                                    CharacterName.Text = "";
+                                                    CharacterClass.Text = "";
+                                                    CharacterRace.Text = "";
+                                                    CharacterLevel.Text = "";
+                                                    StatHP.Text = "";
+                                                    StatAC.Text = "";
+                                                    StatStrength.Text = "10";
+                                                    StatDexterity.Text = "10";
+                                                    StatConstitution.Text = "10";
+                                                    StatIntelligence.Text = "10";
+                                                    StatWisdom.Text = "10";
+                                                    StatCharisma.Text = "10";
+                                                    Notes1.Text = "";
+                                                    Notes2.Text = "";
+                                                    Notes3.Text = "";
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            
+                                // Combatant class with INotifyPropertyChanged for UI updates
+                                public class Combatant : INotifyPropertyChanged
+                                {
+                                    private string _name;
+                                    public string Name
+                                    {
+                                        get => _name;
+                                        set { _name = value; OnPropertyChanged(); }
+                                    }
+                                
+                                    private int _initiative;
+                                    public int Initiative
+                                    {
+                                        get => _initiative;
+                                        set { _initiative = value; OnPropertyChanged(); }
+                                    }
+                                
+                                    private int _hp;
+                                    public int HP
+                                    {
+                                        get => _hp;
+                                        set { _hp = value; OnPropertyChanged(); }
+                                    }
+                                
+                                    private string _status;
+                                    public string Status
+                                    {
+                                        get => _status;
+                                        set { _status = value; OnPropertyChanged(); }
+                                    }
+                                
+                                    public event PropertyChangedEventHandler PropertyChanged;
+                                    protected void OnPropertyChanged([CallerMemberName] string name = null)
+                                    {
+                                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+                                    }
+                                }
+                            }
+                        }
+                    </code>
+                </pre>
+            </div>
+        </div>
+    </body>
+    <script src = "prism.js"></script>
+</html>
+

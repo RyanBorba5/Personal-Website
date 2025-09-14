@@ -1,41 +1,60 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>Gradient Project</title>
-        <link rel="stylesheet" href="style.css">
-        <link rel="stylesheet" href="prism.css">
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
-    </head>
-    <body>
-        <nav class = "roboto-mono">
-            <ul>
-                <li><a href="index.html">Home</a></li>
-                <li><a href="aboutme.html">About Me</a></li>
-                <li><a href="projects.html">Projects</a></li>
-                <li><a href="note.html">Note To Future Self</a></li>
-                <li><a href="progress.html">Progression</a></li>
-            </ul>
-        </nav>
-        <div class = "widget-container-project">
-            <div class = "widgetnopointer">
-                <img src = "images/EnemyDuplicator.png" id = "project-image">
-            </div>
-            <div class = "widget-aboutme">
-                <p> I was able to dig up the code for this project and I'm so happy that I was able to access it because I almost just made this page without the code. Looking back, it's such a mess but it got the job done. Basically we iterate through every single MSB (dark souls map file) and duplicate the enemies in every single one. This project used a repository called SoulsFormats that helped me access specific objects and parts in the game files. This was also my first ever exe I've made which I probably stated already but it still makes me feel accomplished. I actually played this myself which was fun and it's a real interesting experience playing one of the hardest fromsoftware games with multiplied enemies. I wish I had my reaction to getting it to work because I was so so excited.
-                    <br>Click the github icon for a link to the project's source code!
-                </p>
-            </div>
-        </div>
-        <div class = github-container>
-            <div class = "widget-github">
-                <a href = "https://github.com/RyanBorba5/DS1-Enemy-Duplicator" target = "_blank"><img src = "images/github.png" id = "githubimg"></a>
-            </div>
-        </div>
-        <div class = code-container>
-            <div class = "code-wrapper">
-                <pre>
+  <head>
+    <title>Enemy Duplicator Project</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="prism.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <nav class="roboto-mono">
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="aboutme.html">About Me</a></li>
+        <li><a href="projects.html">Projects</a></li>
+        <li><a href="note.html">Note To Future Self</a></li>
+        <li><a href="progress.html">Progression</a></li>
+      </ul>
+    </nav>
+    <div class="widget-container-project">
+      <div class="widgetnopointer">
+        <img src="images/EnemyDuplicator.png" id="project-image" />
+      </div>
+      <div class="widget-aboutme">
+        <p>
+          I was able to dig up the code for this project and I'm so happy that I
+          was able to access it because I almost just made this page without the
+          code. Looking back, it's such a mess but it got the job done.
+          Basically we iterate through every single MSB (dark souls map file)
+          and duplicate the enemies in every single one. This project used a
+          repository called SoulsFormats that helped me access specific objects
+          and parts in the game files. This was also my first ever exe I've made
+          which I probably stated already but it still makes me feel
+          accomplished. I actually played this myself which was fun and it's a
+          real interesting experience playing one of the hardest fromsoftware
+          games with multiplied enemies. I wish I had my reaction to getting it
+          to work because I was so so excited. <br />Click the github icon for a
+          link to the project's source code!
+        </p>
+      </div>
+    </div>
+    <div class="github-container">
+      <div class="widget-github">
+        <a
+          href="https://github.com/RyanBorba5/DS1-Enemy-Duplicator"
+          target="_blank"
+          ><img src="images/github.png" id="githubimg"
+        /></a>
+      </div>
+    </div>
+    <div class="code-container">
+      <div class="code-wrapper">
+        <pre>
                     <code id = "code" class = "language-csharp">
                         using SoulsFormats;
                         using System.Security.Cryptography.X509Certificates;
@@ -330,9 +349,8 @@
                     }
                     </code>
                 </pre>
-            </div>
-        </div>
-    </body>
-    <script src = "prism.js"></script>
+      </div>
+    </div>
+  </body>
+  <script src="prism.js"></script>
 </html>
-
